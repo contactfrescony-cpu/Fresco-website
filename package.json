@@ -1,0 +1,41 @@
+{
+  "name": "fresco-ny-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fresco NY website — React (Vite) front end with an Express server",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch-path=server.js --watch-path=server server.js --dev",
+    "build": "vite build",
+    "start": "node server.js",
+    "start:production": "cross-env NODE_ENV=production node server.js",
+    "preview": "npm run build && npm start",
+    "check": "node --check server.js && node --check server/auth.js && node --check server/db.js && node --check server/drive.js && node --check server/uploads.js && node --check server/catalog.js && node --check server/media.js && vite build --logLevel warn",
+    "db:setup": "node scripts/db-setup.js",
+    "db:create-user": "node scripts/create-user.js",
+    "db:set-password": "node scripts/set-password.js",
+    "drive:check": "node scripts/drive-check.js",
+    "media:migrate": "node scripts/media-migrate.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "lenis": "^1.3.27",
+    "mysql2": "^3.24.6",
+    "nodemailer": "^10.3.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "cross-env": "^10.1.0",
+    "sharp": "^0.35.5",
+    "vite": "^8.3.5"
+  }
+}

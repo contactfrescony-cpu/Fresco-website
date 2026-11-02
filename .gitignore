@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+npm-debug.log*
+*.log
+media-library/
+
+# Operating-system clutter
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Old static site and original source artwork (kept on this PC only)
+legacy-static/

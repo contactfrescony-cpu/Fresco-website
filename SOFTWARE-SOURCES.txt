@@ -1,0 +1,17 @@
+FRESCO NY — SOFTWARE DESCRIPTIONS / SOURCE NOTES
+
+Optitex: Official Optitex 2D/3D CAD page describes digital pattern creation, grading, 3D virtual samples and marker/nesting workflows. Fresco website summary: 2D pattern development and grading, marker planning and 3D garment visualisation.
+Source: https://optitex.com/products/2d-and-3d-cad-software/
+
+Natific: Official Natific site describes digital colour management from colour design and palette creation through colour development, supplier collaboration and production compliance monitoring.
+Source: https://www.natific.com/
+
+ColorDigital / DMIx: ColorDigital's DMIx is described as a digital workflow for sharing measured colour, material and surface data across fashion/textile development and supply chains.
+Source: https://www.eizo.com/solutions/casestudies/creative-work/colordigital/
+Additional context: https://www.coats.com/fr/news/2025/05/coats-strengthens-digital-infrastructure-with-dmix-partnership/
+
+Wilcom EmbroideryStudio: Wilcom describes professional embroidery design and digitising workflows, converting artwork into editable embroidery objects and stitch-ready outputs. The user specified E3; note that E3 is an older edition and Wilcom's current site now promotes EmbroideryStudio 2026. Verify the exact licensed edition used by Fresco before launch.
+Source: https://wilcom.com/embroiderystudio
+Legacy E3 support/compatibility note: https://help.wilcom.com/portal/en/kb/articles/operating-system-compatibility
+
+All descriptions are paraphrased, not vendor endorsements. Confirm Fresco's current licences and exact modules before publishing.

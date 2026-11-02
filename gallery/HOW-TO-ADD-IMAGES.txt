@@ -1,0 +1,32 @@
+NOTE (November 2026): product photos are now managed in the back office.
+Contributors upload photos (Upload Photos page); approvers publish them on the
+Website Images page, and the files are stored in Google Drive ("Fresco Website Images").
+The files below are only the fallback used if the database is unreachable.
+Adding files here no longer changes the website.
+
+FRESCO NY PRODUCT IMAGE FOLDERS
+================================
+
+Add product images to the matching folder:
+
+  tshirts       T-shirts and long-sleeve tees
+  polos         Polo shirts
+  hoodies       Sweatshirts and hoodies
+  shirts        Shirts and overshirts
+  outerwear     Jackets and fleece outerwear
+  denim         Jeans
+  trousers      Chinos, joggers and trousers
+  shorts        Shorts
+
+Accepted formats: JPG, JPEG, PNG, WEBP and AVIF.
+Recommended format: WEBP, 800 x 1000 pixels (4:5 portrait), under 150 KB per image.
+Photos are shown in a 4:5 frame, so portrait product shots on a plain background work best.
+
+Use simple unique filenames without spaces, for example:
+
+  washed-black-tshirt-01.webp
+  olive-hoodie-02.webp
+  checked-overshirt-03.webp
+
+The website scans these folders automatically. Do not edit the HTML when
+adding images, and do not rename the category folders.

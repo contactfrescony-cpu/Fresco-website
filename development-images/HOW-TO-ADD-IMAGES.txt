@@ -1,0 +1,27 @@
+FRESCO NY DEVELOPMENT PAGE IMAGE FOLDERS
+========================================
+
+The four photographs on the Development page are read from these folders:
+
+  measuring   01 / Measuring tape
+  thread      02 / Sewing thread
+  needles     03 / Needles
+  patterns    04 / Pattern pieces
+
+Each folder works exactly like the product gallery folders:
+
+  - One image in the folder: that image is shown.
+  - Several images: they rotate automatically every 5 seconds.
+  - To replace a photo, delete the example-*.webp file and add your own.
+
+Accepted formats: JPG, JPEG, PNG, WEBP and AVIF.
+Recommended format: WEBP, landscape 1600 x 1200 pixels (4:3), under 400 KB.
+Images are cropped to a 4:3 frame, so keep the subject near the centre.
+
+Use simple unique filenames without spaces, for example:
+
+  measuring-table-01.webp
+  thread-cones-02.webp
+
+The website scans these folders automatically. Do not edit the HTML when
+adding images, and do not rename the folders.

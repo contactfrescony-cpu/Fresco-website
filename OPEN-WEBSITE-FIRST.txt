@@ -1,0 +1,19 @@
+FRESCO NY WEBSITE PREVIEW — WINDOWS
+
+The website is a React application. It must be built and served by the
+included Node server; opening the HTML files directly no longer works.
+
+1. Install Node.js LTS (version 20 or newer) from https://nodejs.org.
+2. Double-click START_PREVIEW_WINDOWS.bat. The first run installs packages,
+   then it builds the site and opens http://localhost:8000.
+3. Keep the black command window open while viewing the site.
+
+For editing with live reload, open a terminal in this folder and run:
+   npm run dev        (then visit http://localhost:8000)
+
+Product photos:      gallery/<category>/          (see gallery/HOW-TO-ADD-IMAGES.txt)
+Development photos:  development-images/<step>/   (see development-images/HOW-TO-ADD-IMAGES.txt)
+Images added to these folders appear without rebuilding the site.
+
+This is a local website preview, not a live deployment to frescony.uk. The enquiry
+form opens an email draft; analytics is not yet connected.
