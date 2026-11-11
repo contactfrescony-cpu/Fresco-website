@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import usePageMeta from '../hooks/usePageMeta.js';
-import { CONTACT_EMAIL, PURPOSES } from '../data/site.js';
+import { ADDRESS_LINES, CONTACT_EMAIL, PURPOSES } from '../data/site.js';
 
 // Exactly the fields the brief allows: company, business email, phone with country code, purpose, message.
 const FIELDS = ['company', 'email', 'phone', 'purpose', 'message', 'website'];
@@ -84,21 +84,20 @@ export default function Contact() {
 
   return (
     <main>
-      <section className="page-hero">
-        <div className="container">
-          <div className="eyebrow">CONTACT FRESCO NY</div>
-          <h1>Let’s start<br />a conversation.</h1>
-          <p className="lead">Tell us who you are and what you need. Our team responds quickly to every business enquiry.</p>
-        </div>
-      </section>
+      {/* The form sits in the opening section so visitors can start typing without scrolling. */}
+      <section className="page-hero contact-hero">
+        <div className="container contact-layout">
+          <div className="contact-intro">
+            <div className="eyebrow">CONTACT FRESCO NY</div>
+            <h1>Let’s start<br />a conversation.</h1>
+            <p className="lead">Tell us who you are and what you need. Our team responds quickly to every business enquiry.</p>
+          </div>
 
-      <section className="section">
-        <div className="container form-layout">
-          <div>
+          <div className="contact-details">
             <div className="eyebrow">BUSINESS ENQUIRIES</div>
-            <h2 className="heading-md">Simple to start.<br />Quick to respond.</h2>
             <p className="muted">No registration and no lengthy quotation forms — just a few details so the right person can get back to you.</p>
             <p><strong>Email</strong><br /><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+            <p><strong>Address</strong><br />{ADDRESS_LINES.join(' ')}</p>
           </div>
 
           <div className="form-panel">

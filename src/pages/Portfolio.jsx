@@ -32,7 +32,7 @@ export default function Portfolio() {
             {categories.map(({ slug, name, description }) => (
               <div className="card" id={slug} key={slug}>
                 <div className="card-image">
-                  <GalleryImage gallery={slug} fallback={PRODUCT_IMAGES[slug]} alt={`${name} product category`} width="800" height="1000" />
+                  <GalleryImage gallery={slug} fallback={PRODUCT_IMAGES[slug]} alt={`${name} product category`} width="800" height="1000" arrows />
                 </div>
                 <h3>{name}</h3>
                 <p>{description}</p>

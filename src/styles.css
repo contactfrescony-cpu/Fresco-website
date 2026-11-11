@@ -36,7 +36,8 @@ body{background:var(--white);color:var(--ink)}
 .eyebrow{color:var(--gold);letter-spacing:.22em}
 h1,h2,.serif{color:var(--green)}
 .hero{background:var(--cream)}
-.hero-copy:before{content:"";position:absolute;left:max(24px,calc((100vw - var(--max))/2));top:72px;width:42px;height:2px;background:var(--gold)}
+/* Short gold rule above the hero label: part of the label itself, so it can never overlap the text. */
+.hero-copy .eyebrow:before{content:"";display:block;width:42px;height:2px;background:var(--gold);margin-bottom:16px}
 .hero-copy h1{font-size:clamp(54px,6.5vw,92px);letter-spacing:-.045em}
 .hero-copy .lead{color:var(--green);font-family:var(--serif);font-size:clamp(20px,2vw,26px)}
 .hero-note{color:var(--green);letter-spacing:.2em}
@@ -74,7 +75,7 @@ h1,h2,.serif{color:var(--green)}
 .footer a:hover{color:var(--gold)}
 .footer-bottom{border-color:var(--line);color:var(--muted)}
 .client-strip{border-color:#D9D2C3;color:var(--green)}
-@media(max-width:720px){.section{padding-top:76px;padding-bottom:76px}.hero-copy:before{top:35px}.hero-copy h1{font-size:56px}}
+@media(max-width:720px){.section{padding-top:76px;padding-bottom:76px}.hero-copy h1{font-size:56px}}
 
 /* Dynamic brand wall */
 .brand-wall{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
@@ -89,7 +90,7 @@ h1,h2,.serif{color:var(--green)}
 .development-page:before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.11;background-image:radial-gradient(circle at 12% 18%,#c99a27 0 2px,transparent 3px),repeating-linear-gradient(90deg,transparent 0 38px,rgba(6,75,53,.12) 39px 40px),repeating-linear-gradient(0deg,transparent 0 38px,rgba(6,75,53,.10) 39px 40px);mask-image:linear-gradient(90deg,#000,transparent 65%)}
 .development-tools{position:absolute;right:4%;top:8%;width:270px;height:220px;opacity:.16;pointer-events:none;background:radial-gradient(ellipse at 70% 20%,transparent 0 32px,#064B35 33px 35px,transparent 36px),repeating-linear-gradient(0deg,transparent 0 10px,#064B35 11px 12px,transparent 13px 20px);transform:rotate(-12deg)}
 .software-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:#d9d1c1;border:1px solid #d9d1c1;margin-top:38px}
-.software-grid article{background:#fffefa;padding:30px;min-height:220px}.software-grid article>span{font-size:10px;letter-spacing:.17em;color:#c99a27}.software-grid h3{font-family:var(--serif);color:#064B35;font-size:25px;margin:16px 0 10px}.software-grid p{color:#687168;font-size:14px}.software-grid a{color:#064B35;font-size:12px;text-decoration:none;border-bottom:1px solid #c99a27;padding-bottom:3px}
+.software-grid .software-card{background:#fffefa;padding:30px;min-height:220px}.software-grid .software-card-label{font-size:10px;letter-spacing:.17em;color:#c99a27}.software-grid h3{font-family:var(--serif);color:#064B35;font-size:25px;margin:16px 0 10px}.software-grid p{color:#687168;font-size:14px}
 .designer-network h2{max-width:800px}
 @media(max-width:800px){.brand-wall{grid-template-columns:repeat(3,1fr)}.brief-flow{grid-template-columns:repeat(2,1fr)}.software-grid{grid-template-columns:1fr}}
 @media(max-width:480px){.brand-wall{grid-template-columns:repeat(2,1fr)}.brief-flow{grid-template-columns:1fr}.brief-stage{min-height:unset}}
@@ -102,7 +103,7 @@ h1,h2,.serif{color:var(--green)}
  height:calc(100dvh - 78px);
  min-height:540px;
 }
-.hero-copy{position:relative;padding-top:clamp(54px,9vh,94px);padding-bottom:clamp(38px,7vh,80px)}
+.hero-copy{position:relative;padding-top:clamp(54px,9vh,94px);padding-bottom:clamp(38px,7vh,80px);background:#F5EFE6}
 .hero-media{height:100%;min-height:0}
 .hero-note{margin-top:clamp(22px,5vh,52px)}
 
@@ -221,7 +222,7 @@ h1,h2,.serif{color:var(--green)}
 }
 
 /* Image carousels (GalleryImage): slide to the next folder image every 5 s. */
-.gallery-carousel{position:relative;width:100%;height:100%;overflow:hidden}
+.gallery-carousel{position:relative;width:100%;height:100%;overflow:hidden;touch-action:pan-y}
 .gallery-track{display:flex;width:100%;height:100%;transition:transform .7s cubic-bezier(.65,0,.35,1);will-change:transform}
 .gallery-track.no-anim{transition:none}
 .gallery-track img{flex:0 0 100%;min-width:0;width:100%;height:100%;user-select:none}
@@ -229,8 +230,23 @@ h1,h2,.serif{color:var(--green)}
 .gallery-dots{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:6px;pointer-events:none}
 .gallery-dots span{width:6px;height:6px;border-radius:50%;background:rgba(6,75,53,.22);transition:background-color .3s,transform .3s}
 .gallery-dots span.is-active{background:var(--gold);transform:scale(1.3)}
+/* Mouse / trackpad: drag to change photo; previous / next arrows on large screens. */
+.gallery-arrow{display:none}
+@media(pointer:fine){
+ .gallery-carousel.is-multi{cursor:grab}
+ .gallery-carousel.is-dragging{cursor:grabbing}
+}
+@media(min-width:900px) and (hover:hover) and (pointer:fine){
+ .gallery-arrow{position:absolute;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:40px;height:40px;margin-top:-20px;padding:0;border:0;border-radius:50%;background:rgba(255,254,250,.86);color:var(--green);box-shadow:0 6px 18px rgba(16,39,30,.18);cursor:pointer;opacity:.75;transition:opacity .25s,background-color .2s,transform .2s}
+ .gallery-arrow.is-prev{left:12px}
+ .gallery-arrow.is-next{right:12px}
+ .gallery-arrow svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+ .gallery-carousel:hover .gallery-arrow{opacity:1}
+ .gallery-arrow:hover{background:#fff;transform:scale(1.06)}
+ .gallery-arrow:focus-visible{opacity:1;outline:2px solid var(--gold);outline-offset:2px}
+}
 
-/* Four image-led development disciplines (images rotate from /development-images/*) */
+/* Four image-led development disciplines (photos from Google Drive, managed in the back office) */
 
 .craft-sections{background:var(--white);padding:clamp(24px,4vw,56px) 0}
 .craft-section{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);align-items:center;gap:clamp(40px,6vw,96px);padding:clamp(48px,6vw,88px) 0;border-bottom:1px solid var(--line)}
@@ -243,7 +259,7 @@ h1,h2,.serif{color:var(--green)}
 .craft-image .gallery-carousel{height:auto;aspect-ratio:4/3;background:#e7e1d5;box-shadow:0 18px 45px rgba(16,39,30,.12)}
 .craft-image img{width:100%;height:100%;object-fit:cover;object-position:center}
 .craft-copy{min-width:0;max-width:540px}
-.craft-copy h2{font-size:clamp(32px,3.4vw,50px);margin:14px 0 20px}
+.craft-copy h2{font-size:clamp(32px,3.4vw,50px);margin:0 0 20px}
 .craft-copy p{color:var(--muted);font-size:16px}
 .craft-copy ul{list-style:none;padding:0;margin:22px 0 0;border-top:1px solid var(--line)}
 .craft-copy li{padding:12px 0;border-bottom:1px solid var(--line);color:var(--green);font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
@@ -283,7 +299,7 @@ h1,h2,h3{overflow-wrap:break-word}
  .brief-flow{margin:32px 0 20px}
  .brief-visual:after{width:220px;height:220px;right:-110px}
  .software-grid{margin-top:28px}
- .software-grid article{padding:24px 20px;min-height:0}
+ .software-grid .software-card{padding:24px 20px;min-height:0}
  .software-grid h3{font-size:22px}
  .quote-band{padding:56px 0}
  .split img{height:auto;aspect-ratio:4/3}
@@ -304,7 +320,6 @@ h1,h2,h3{overflow-wrap:break-word}
 /* ---------- React port helpers (replace former inline styles) ---------- */
 .quote-band .sub{margin:12px 0 0;color:#d7ded6}
 .footer-blurb{max-width:380px;margin-top:22px}
-.footer-address{margin-top:18px;font-size:11px!important}
 .portfolio-note{margin-top:28px}
 .discover-link{margin-top:28px}
 .hero-copy .hero-body{max-width:510px}
@@ -330,6 +345,11 @@ main [id]{scroll-margin-top:90px}
 
 /* ---------- Supply Chain page ---------- */
 .process.process-6{grid-template-columns:repeat(6,1fr)}
+.hero-media:after{display:none}
+@media(min-width:721px){
+ .hero-media{margin-left:-4px;width:calc(100% + 4px);background:#F5F1E7}
+ .hero-media img{min-width:100.5%}
+}
 .status-tag{display:inline-block;vertical-align:middle;margin-left:12px;padding:3px 9px;border:1px solid var(--gold);border-radius:999px;font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8a6a17;white-space:nowrap}
 .commitment{background:var(--green);color:#fff;text-align:center}
 .commitment .eyebrow{color:#E0C16C}
@@ -350,6 +370,9 @@ main [id]{scroll-margin-top:90px}
 .insight-meta{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:12px;color:var(--muted)}
 .insight-card h3{font-family:var(--serif);font-size:24px;font-weight:400;line-height:1.15;color:var(--green);margin:12px 0 10px}
 .insight-card p{font-size:14px;margin:0 0 10px}
+.insight-link{display:flex;flex-direction:column;flex:1;color:inherit;text-decoration:none}
+.insight-link:hover h3{color:var(--gold)}
+.insight-read{margin-top:auto;padding-top:6px;font-size:13px;font-weight:500;color:var(--green);border-bottom:1px solid var(--gold);align-self:flex-start}
 .insight-source{font-size:12px;color:var(--muted);margin-top:auto}
 .insight-source a{border-bottom:1px solid var(--gold)}
 .insight-empty{border:1px solid var(--line);border-top:3px solid var(--gold);background:var(--white);padding:56px 32px;text-align:center}
@@ -362,3 +385,126 @@ main [id]{scroll-margin-top:90px}
 .field label .optional{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)}
 .privacy-note{margin-top:14px}
 .privacy-note a{text-decoration:underline}
+
+/* Contact page: the form shares the opening section, so it is visible without scrolling. */
+.page-hero.contact-hero{padding:48px 0 64px}
+.contact-layout{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);grid-template-areas:"intro form" "details form";column-gap:64px;row-gap:28px;align-items:start}
+.contact-intro{grid-area:intro}
+.contact-intro h1{font-size:clamp(40px,4.6vw,64px);margin:14px 0 18px}
+.contact-intro .lead{margin-bottom:0}
+.contact-details{grid-area:details;border-top:1px solid var(--line);padding-top:22px}
+.contact-details .eyebrow{margin-bottom:10px}
+.contact-details p{font-size:14px}
+.contact-details a{color:var(--green);border-bottom:1px solid var(--gold)}
+.contact-hero .form-panel{grid-area:form;background:var(--white);border:1px solid var(--line);box-shadow:0 18px 45px rgba(16,39,30,.08)}
+@media(max-width:860px){
+ .contact-layout{grid-template-columns:1fr;grid-template-areas:"intro" "form" "details";row-gap:24px}
+}
+@media(max-width:720px){
+ .page-hero.contact-hero{padding:28px 0 44px}
+ .contact-intro h1{font-size:clamp(32px,9vw,40px);margin:10px 0 12px}
+ .contact-intro .lead{font-size:15px}
+}
+
+/* ---------- Footer contact list with icons ---------- */
+.footer-contact{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.footer-contact li{display:flex;align-items:flex-start;gap:10px}
+.footer-icon{flex:0 0 18px;color:var(--gold);margin-top:1px}
+.footer-contact address{font-style:normal}
+.footer-contact address a{display:flex;flex-direction:column;line-height:1.5}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ---------- Development page: software cards ---------- */
+/* Each whole card links to the maker's website and shows its logo, colours and typefaces. */
+.software-grid .software-card{position:relative;z-index:0;display:flex;flex-direction:column;align-items:flex-start;color:inherit;text-decoration:none;transition:transform .25s,box-shadow .25s}
+.software-grid .software-card:hover{z-index:1;transform:translateY(-3px);box-shadow:0 16px 36px rgba(16,39,30,.16)}
+.software-grid .software-card:focus-visible{outline:2px solid var(--gold);outline-offset:-5px}
+.software-grid .software-card p{margin-bottom:0}
+.software-grid .software-card-label{font-weight:600}
+.software-logo{display:block;width:auto;height:32px;max-width:220px;object-fit:contain;object-position:left center;margin-bottom:24px}
+.software-card-arrow{position:absolute;top:26px;right:28px;font-size:18px;line-height:1;opacity:.5;transition:opacity .25s,transform .25s}
+.software-card:hover .software-card-arrow,.software-card:focus-visible .software-card-arrow{opacity:1;transform:translate(2px,-2px)}
+@media(prefers-reduced-motion:reduce){.software-grid .software-card,.software-card-arrow{transition:none}.software-grid .software-card:hover{transform:none}}
+
+/* Optitex — near-black with purple gradient, Montserrat Light capitals (optitex.com) */
+.software-grid .software-card--optitex{background:linear-gradient(270deg,#552bff,#b600ff) top/100% 4px no-repeat,#1a1a1a;color:#fffdfd;font-family:"Software Card Inter",Inter,Arial,sans-serif}
+.software-card--optitex .software-logo{height:26px}
+.software-grid .software-card--optitex .software-card-label{color:#bd8cf5}
+.software-grid .software-card--optitex h3{font-family:Montserrat,Arial,sans-serif;font-weight:300;text-transform:uppercase;letter-spacing:.08em;color:#fffdfd}
+.software-grid .software-card--optitex p{color:#cfcdcd}
+
+/* Natific — clean white, Poppins, deep green (natific.com) */
+.software-grid .software-card--natific{background:#fff;color:#000;font-family:Poppins,Arial,sans-serif}
+.software-card--natific .software-logo{height:40px}
+.software-grid .software-card--natific .software-card-label{color:#007952}
+.software-grid .software-card--natific h3{font-family:Poppins,Arial,sans-serif;font-weight:600;letter-spacing:-.01em;color:#000}
+.software-grid .software-card--natific p{color:#5a5a5a}
+
+/* ColorDigital · DMIx — warm sand, Archivo headings, Inter text, forest green (dmix.info) */
+.software-grid .software-card--dmix{background:#e4dcd3;color:#31312b;font-family:"Software Card Inter",Inter,Arial,sans-serif}
+.software-grid .software-card--dmix .software-card-label{color:#2b6443}
+.software-grid .software-card--dmix h3{font-family:Archivo,Arial,sans-serif;font-weight:600;letter-spacing:-.02em;color:#31312b}
+.software-grid .software-card--dmix p{color:#4a4a43}
+
+/* Wilcom — white with red accent, Montserrat Bold headings, Roboto text (wilcom.com) */
+.software-grid .software-card--wilcom{background:linear-gradient(#ec1b38,#ec1b38) top/100% 4px no-repeat,#fff;color:#000;font-family:Roboto,Arial,sans-serif}
+.software-card--wilcom .software-logo{height:36px}
+.software-grid .software-card--wilcom .software-card-label{color:#c4142e}
+.software-grid .software-card--wilcom h3{font-family:Montserrat,Arial,sans-serif;font-weight:700;letter-spacing:-.01em;color:#000}
+.software-grid .software-card--wilcom p{color:#414141}
+
+
+/* ---------- Home page scroll parallax (see src/hooks/useParallax.js) ---------- */
+/* --py is written by the hook in pixels; without it (reduced motion, no JS) everything is static. */
+/* Curtain hero: the opening stays pinned under the navigation while the rest of the page slides over it,
+   receding and dimming slightly as it is covered. --py on .hero equals the scroll distance. */
+.home{background:var(--cream)}
+.home .hero{position:sticky;top:78px;z-index:0;transform:scale(var(--hero-scale,1));transform-origin:center top;will-change:transform}
+.home .hero:before{content:"";position:absolute;inset:0;z-index:2;background:#101613;opacity:var(--hero-dim,0);pointer-events:none}
+.home .hero-copy-inner{display:flex;flex-direction:column;align-items:flex-start;opacity:var(--hero-copy-opacity,1)}
+/* Everything after the hero is the curtain: raised above it and opaque. */
+.home .hero~*{position:relative;z-index:1}
+.home .hero~.section:not(.cream):not(.brief-visual){background:#fff}
+.home~.footer{position:relative;z-index:1}
+/* Full-bleed photo band: same idea at page width. */
+.image-banner.home-band{display:flex;align-items:center;background:#e7e1d5}
+.image-banner.home-band img{flex:none;width:100%;height:130%;object-fit:cover;object-position:center top;transform:translate3d(0,calc(var(--py,0)*1px),0);will-change:transform}
+@media(max-width:720px){.home .hero{top:68px}}
+@media(prefers-reduced-motion:reduce){
+ .home .hero{position:relative;top:auto;transform:none}
+ .home .hero:before{display:none}
+ .home .hero-copy-inner{opacity:1}
+ .image-banner.home-band img{transform:none}
+}
+
+/* ---------- Home hero: responsive fixes ---------- */
+/* Stacked phone and small-tablet layout: the copy takes the height it needs and the photo fills the rest,
+   instead of a fixed 68/32 split that left empty cream above and below the copy on taller screens. */
+@media(max-width:720px) and (orientation:portrait){
+ .hero{grid-template-rows:auto minmax(170px,1fr)}
+ /* hero-phone.webp (4:3): on short phones the strip is wider than the photo; anchor it to the top so the
+    models keep their headroom (the T-shirt and sweatshirt still fit below). */
+ .hero-media img{object-position:center top}
+}
+/* hero-tablet.webp (2:5) matches the tall tablet column almost exactly: centre it. */
+@media(min-width:721px) and (max-width:1366px) and (orientation:portrait){
+ .hero-media img{object-position:center center}
+}
+/* band-phone-cropped.webp (1:1): on upright phones the band takes a fixed 5:4 shape and stops drifting, so
+   the crop is always the same: headroom above her head, the outfit down to the jeans below. With the photo
+   no taller than its frame, the parallax hook's overflow clamp keeps it still. */
+@media(max-width:720px) and (orientation:portrait){
+ .image-banner.home-band{height:auto;aspect-ratio:5/4}
+ .image-banner.home-band img{height:100%;object-position:center center;transform:none}
+}
+/* The <picture> wrappers around the hero and band photos must not affect their sizing. */
+.hero-media picture,.home-band picture{display:contents}
+/* Phones and small tablets held sideways are too short for a full-screen opening: the hero grows to fit
+   its copy, and is not pinned (a pinned box taller than the screen would hide its own lower part). */
+@media(orientation:landscape) and (max-height:520px){
+ .hero{height:auto;min-height:0}
+ .hero-copy{padding-top:28px;padding-bottom:28px}
+ .hero-media{min-height:260px}
+ .home .hero{position:relative;top:auto;transform:none}
+ .home .hero:before{display:none}
+}

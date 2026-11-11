@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../review.css';
+import { clearGalleryCache } from '../../lib/gallery.js';
+import DevelopmentImagesSection from './DevelopmentImagesSection.jsx';
 
 /*
  * Approver's "Website Images" page — split screen.
@@ -8,6 +10,7 @@ import '../review.css';
  *          folder drops its last photo). Folders and the photos inside them are reordered by dragging, and a
  *          photo can be dragged from one folder onto another. A filter shows the homepage / Products folders.
  * Touch screens: tap a photo to pick its folder; arrow buttons reorder; "Move" sends a photo to another folder.
+ * Below: "Development page photos" — the four Development page sections, up to 3 directly uploaded photos each.
  */
 
 const ERRORS = {
@@ -29,6 +32,7 @@ const ERRORS = {
 const errorText = (code) => ERRORS[code] || (code?.startsWith('drive_') ? 'Google Drive did not answer properly. Try again shortly.' : 'Something went wrong. Please try again.');
 
 async function api(url, method = 'GET', body) {
+  if (method !== 'GET') clearGalleryCache();   // website photo lists are fetched again after any change
   const response = await fetch(url, {
     method,
     credentials: 'same-origin',
@@ -169,6 +173,7 @@ export default function ReviewPage() {
       <>
         <PageHead />
         {error ? <p className="admin-alert" role="alert">{error}</p> : <p className="muted">Loading…</p>}
+        {error && <DevelopmentImagesSection />}
       </>
     );
   }
@@ -485,6 +490,8 @@ export default function ReviewPage() {
         </section>
       </div>
 
+      <DevelopmentImagesSection />
+
       {pickerPhoto && (
         <FolderPicker
           title="Publish to which folder?"
@@ -517,6 +524,7 @@ function PageHead({ children }) {
         <div className="eyebrow">WEBSITE IMAGES</div>
         <h1>Website images</h1>
         <p className="muted">Approve finished photos into the website&apos;s product folders, and choose what shows on the homepage and Products page.</p>
+        <p className="review-jump"><a href="#development-photos">Development page photos ↓</a></p>
       </div>
       {children}
     </header>

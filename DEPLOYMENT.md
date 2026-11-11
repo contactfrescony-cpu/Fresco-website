@@ -27,9 +27,19 @@ Terminate HTTPS at Nginx, Apache, a load balancer, or the hosting platform and p
 
 Use systemd, PM2, Docker, or the host's application manager. Configure its health check as `GET /healthz`; a healthy instance returns HTTP 200 with `{"status":"ok"}`.
 
-## Contact form email
+## Contact form: enquiries, email and Google Sheet
 
-The Contact page posts enquiries to `POST /api/contact`, which emails them to `CONTACT_TO` (default `info@frescony.uk`) with the visitor's address as Reply-To. Set the SMTP details of the sending mailbox in `.env` (see `.env.example`) or the host's environment:
+The Contact page posts enquiries to `POST /api/contact`. Each enquiry is:
+
+1. **saved in MySQL** (`enquiries` table, created by `npm run db:setup`). This is the master copy, shown on the back-office **Enquiries** page (`/admin/enquiries`, administrators and viewers): filter by status, search, assign to a staff member, add internal notes, export CSV;
+2. **emailed** as "New enquiry #id" (details below), with a link to that enquiry on the Enquiries page;
+3. **copied to a Google Sheet** (below).
+
+When the enquiry is saved, the visitor gets an answer straight away and the email and Sheet copy follow in the background, so a slow mail server or Google never loses an enquiry. If the database is down, the email is sent directly as before.
+
+### Email
+
+The server emails each enquiry to `CONTACT_TO` (default `info@frescony.uk`) with the visitor's address as Reply-To. Set the SMTP details of the sending mailbox in `.env` (see `.env.example`) or the host's environment:
 
 ```sh
 SMTP_HOST=smtp.example.com
@@ -40,7 +50,20 @@ SMTP_PASS=<app password>
 CONTACT_TO=info@frescony.uk
 ```
 
-Restart the server after changing these. Without `SMTP_HOST`, the form falls back to opening the visitor's email app with the enquiry pre-filled. The endpoint validates fields, has a hidden spam honeypot and allows 5 enquiries per IP per 15 minutes.
+Restart the server after changing these. Without `SMTP_HOST` the enquiry is still saved (the Enquiries page shows "Email not set up"); only when neither SMTP nor the database is configured does the form fall back to opening the visitor's email app with the enquiry pre-filled. The endpoint validates fields, has a hidden spam honeypot and allows 5 enquiries per IP per 15 minutes.
+
+### Google Sheet copy
+
+Every enquiry becomes one row in a Google Sheet, keyed by its ID in column A. Status and "assigned to" changes made on the Enquiries page update that same row; nothing is ever duplicated. The Sheet is a copy for convenience: the Enquiries page and the database remain the master.
+
+1. Signed in as the Fresco NY Google account, create a Google Sheet (e.g. "Fresco NY Enquiries").
+2. In the Sheet: **Extensions -> Apps Script**. Replace the code with `google/enquiries-sheet.gs` and save.
+3. **Project Settings -> Script properties**: add `SHEET_SECRET`, a long random string (e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
+4. **Deploy -> New deployment -> Web app**, Execute as **Me**, Who has access **Anyone**, then authorise.
+5. In the website's `.env` set `SHEETS_WEBHOOK_URL` (the URL ending in `/exec`) and `SHEETS_WEBHOOK_SECRET` (the same secret). Restart the server.
+6. Run `npm run sheets:check`. It names the Sheet and sends any enquiries saved before it was connected.
+
+If Google is unreachable, the copy is retried every 10 minutes; the Enquiries page shows how many are waiting and has a **Sync to Sheet now** button. Staff may add their own columns to the right of the script's columns; the script writes only its own.
 
 ## Back-office database (MySQL) and staff login
 
@@ -66,6 +89,38 @@ Roles: `admin` (everything), `approver` (review and publish), `contributor` (upl
 
 Sessions last 12 hours and are stored in the `user_sessions` table as hashed tokens, in an HttpOnly cookie that is marked `Secure` when `NODE_ENV=production` (so production must be served over HTTPS). Login is limited to 10 attempts per IP per 15 minutes. All times are stored in UTC. If MySQL is unreachable, the public website keeps working and only the back office reports that it is unavailable.
 
+## Database on your own server (website hosted elsewhere, e.g. Hostinger)
+
+The website can run on Hostinger while MySQL stays on your own server. It reaches MySQL over the internet through the server's public name (for example `db.example.com`, which forwards port 3306 to the office MySQL machine).
+
+Settings on the hosting side:
+
+```sh
+DB_HOST=db.example.com      # a plain name or IP, without https:// or a trailing /
+DB_PORT=3306
+DB_NAME=fresco_ny
+DB_USER=fresco_web           # a dedicated login, see below
+DB_PASSWORD=...
+DB_SSL=true                  # encrypt the connection over the internet
+DB_SSL_CA=                   # optional: path to the server's ca.pem, to also verify the server
+```
+
+Run `npm run db:check` on the hosting server. It prints that server's public IP and tests the connection, encryption and speed. If something fails, it says what to fix.
+
+**On the MySQL server** (done by whoever administers it):
+
+1. Create a login just for the website. It may connect only from the hosting server's IP, may only use `fresco_ny`, and must use encryption:
+
+   ```sql
+   CREATE USER 'fresco_web'@'HOSTING_SERVER_IP' IDENTIFIED BY 'a-long-random-password' REQUIRE SSL;
+   GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES ON fresco_ny.* TO 'fresco_web'@'HOSTING_SERVER_IP';
+   ```
+
+2. In the firewall, allow port 3306 **only** from the hosting server's IP, plus the office for maintenance. The same MySQL server holds other systems' databases, so it must not be open to the whole internet.
+3. The public address must not change. Use a static IP or a DNS name such as `db.example.com` that is kept up to date.
+
+If the office internet or that server goes down, the public pages still show their built-in products and photos. The back office (logins, uploads, approvals) waits until the database is reachable again.
+
 ## Contributor photo uploads → Google Drive
 
 Contributors have one job in the back office: **Upload Photos** (`/admin/upload`). They pick or drag in raw garment photos (JPG, PNG, WebP or HEIC, up to 25 MB each, up to 50 at a time). Each photo is sent to the Google Drive folder **Unprocessed Garment Images**, where the image pipeline (`fresco-website-automation`) classifies and processes it. Contributors do not choose a category.
@@ -83,7 +138,7 @@ Each photo is renamed in Drive to `date_randomid_originalname`, for example `202
 
 The back-office sidebar has Upload Photos, Website Images, Users & Roles, Enquiries and Analytics; each person sees only the pages their role allows and lands on the first of them (there is no dashboard). Administrators see a badge on Users & Roles when people are waiting for a role.
 
-Approvers have one page in the back office: **Website Images** (`/admin/review`). It is a split screen.
+Approvers have one page in the back office: **Website Images** (`/admin/review`). At the top it is a split screen for the product photos; below that is a separate **Development page photos** section (see the next section).
 
 - **Left: waiting for approval.** These are the finished images the pipeline wrote to `Processed Images/<category>/` in Drive. Each one shows the folder the AI suggests.
 - **Right: the website's 8 product folders** and the photos in each.
@@ -130,9 +185,45 @@ This needs the **current** `google/drive-upload.gs` (version 3):
 
 It is safe to run again; photos already moved are skipped. The `gallery/` files are not deleted. They stay as the fallback the homepage and Products page use if MySQL is unreachable.
 
+### Development page photos (approvers)
+
+The **Development page photos** section at the bottom of **Website Images** (link at the top of the page) manages the photos of the four Development page sections: 01 Measuring tape, 02 Sewing thread, 03 Needles and 04 Pattern pieces. Each section holds up to **3** photos, which visitors swipe through (arrows on large screens).
+
+- **Add photo** (click, or drop a photo on the slot), **Replace**, **Remove** and the ← → buttons to change the order. Changes are live straight away.
+- These photos do **not** go through the AI image pipeline (that is for garment shots). The browser shrinks each photo to at most 2000 px and WebP before uploading; JPG, PNG and WebP work everywhere, iPhone HEIC photos only in Safari.
+- Storage is the same as product photos: Google Drive **Fresco Website Images/Development – <section>/**, tracked in `product_categories` (`kind = 'development'`, ids 101–104) and `product_images`. Replaced and removed photos go to the Drive trash.
+- **Google Drive is the only source** of these photos: there are no local copies. A section with no photos shows an empty frame, and if the database cannot be reached the sections show empty frames too. The original four pictures were moved into Drive with `npm run media:migrate` (it uploads a section's old `development-images/<key>/` files only while that section has no photos).
+- Needs `npm run db:setup` once (adds the `kind` column and the four sections) and Apps Script version 3 or later.
+
 ## Gallery updates
 
-Upload JPG, JPEG, PNG, WebP, or AVIF files to the relevant directory under `gallery/` (product pages) or `development-images/` (the four Development page photos: `measuring`, `thread`, `needles`, `patterns`). On an ephemeral hosting platform, include images in the deployment artifact or migrate them to object storage; runtime uploads will not persist.
+Upload JPG, JPEG, PNG, WebP, or AVIF files to the relevant directory under `gallery/` (product pages). The four Development page photo sections have no folders: their photos live in Google Drive and are managed in **Website Images → Development page photos**. On an ephemeral hosting platform, include images in the deployment artifact or migrate them to object storage; runtime uploads will not persist.
+
+## Website analytics (Google Analytics 4)
+
+The public site loads the GA4 tag itself (`src/components/AnalyticsTracker.jsx`) and sends a page view on every page change. It does not track `/admin` pages, `localhost` or office-network (192.168.x / 10.x) addresses, so only real visitors are counted. The production Content-Security-Policy already allows Google's analytics hosts.
+
+The back-office **Analytics** page reads the figures from Google with a service account:
+
+1. Copy the service-account key to `google/ga4-key.json` on the server. It is gitignored, so copy it by hand; it is not in the repository.
+2. Set `GA4_PROPERTY_ID` (the numeric property ID) and `GA4_KEY_FILE` in `.env`.
+3. In GA4 Admin → Property access management, give the service account's email the Viewer role.
+
+If something is missing or Google refuses access, the Analytics page shows the exact error instead of numbers. New visits take 24–48 hours to appear in GA4's reports. "Active right now" is real time.
+
+The page also shows a separate server visit log (IP, approximate location and device), kept in MySQL `visitor_logs` for 30 days. Bots, staff pages and office-network visits are not logged.
+
+### Daily analytics email
+
+Administrators set the recipients (up to 10) and the send time on the **Analytics** page, under *Daily Email Report*. Viewers can see these settings but not change them. Use **Send test email now** to check delivery. The email contains the previous day's GA4 figures and is sent through the SMTP settings above (`SMTP_*`), so those must be filled in.
+
+The website's own Node server sends it: a scheduler inside `server.js` checks every minute. Settings and status live in MySQL (`analytics_email_settings`, created automatically). Times are in `REPORT_TIME_ZONE` (India time by default).
+
+- **Catch-up:** if the app was stopped or asleep at the send time, the email goes out as soon as the app is running again that day.
+- **No duplicates:** each day is recorded in the database before sending, so a restart or a second copy of the app never sends twice.
+- **Retry:** if sending fails, the page shows the error and the app tries again every 15 minutes that day.
+
+On hosts that stop idle Node apps, add a cron job in the hosting panel that opens `https://frescony.uk/healthz` a minute before the send time. This wakes the app. Hosting servers usually run on UTC: 08:59 India time is `29 3 * * *`.
 
 ## Before DNS cutover
 

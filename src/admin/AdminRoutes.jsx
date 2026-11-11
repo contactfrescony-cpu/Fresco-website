@@ -8,11 +8,13 @@ import Signup from './pages/Signup.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import UploadPage from './pages/UploadPage.jsx';
 import ReviewPage from './pages/ReviewPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import EnquiriesPage from './pages/EnquiriesPage.jsx';
 import { ADMIN_SECTIONS, canAccess, homeSectionFor } from './sections.js';
 import './admin.css';
 
 // Sections that have a real screen; every other section still shows the placeholder.
-const SECTION_PAGES = { users: UsersPage, upload: UploadPage, review: ReviewPage };
+const SECTION_PAGES = { users: UsersPage, upload: UploadPage, review: ReviewPage, enquiries: EnquiriesPage, analytics: AnalyticsPage };
 
 function AdminLoading() {
   return <div className="admin-loading" aria-busy="true">Loading…</div>;

@@ -1,5 +1,18 @@
 export const CONTACT_EMAIL = 'info@frescony.uk';
 
+/** Postal address, one line each. The last line names the country so international visitors see it is India. */
+export const ADDRESS_LINES = ['No: 520, Pudur Pirivu, Dharapuram Road,', 'Tiruppur – 641608, Tamil Nadu,', 'India'];
+
+/** Map link for the address (opens Google Maps in a new tab). */
+export const ADDRESS_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=' +
+  encodeURIComponent('520 Pudur Pirivu, Dharapuram Road, Tiruppur 641608, Tamil Nadu, India');
+
+/**
+ * Phone numbers shown in the footer, with country code, e.g. ['+91 98765 43210'].
+ * Leave empty to hide the phone row.
+ */
+export const PHONE_NUMBERS = [];
+
 export const NAV_LINKS = [
   ['/', 'Home'],
   ['/development', 'Development'],

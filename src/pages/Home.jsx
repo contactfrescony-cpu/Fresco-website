@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import usePageMeta from '../hooks/usePageMeta.js';
 import GalleryImage from '../components/GalleryImage.jsx';
@@ -6,8 +6,19 @@ import BriefFlow from '../components/BriefFlow.jsx';
 import { BRANDS } from '../data/site.js';
 import { PRODUCT_IMAGES } from '../data/products.js';
 import useProductCategories from '../hooks/useProductCategories.js';
-import heroImage from '../assets/hero-fashion.webp';
+import useParallax from '../hooks/useParallax.js';
+import bandImage from '../assets/home-fashion-band.webp';
+import bandPhoneImage from '../assets/band-phone-cropped.webp';  // square crop of band-phone.webp, cut above a blur at the hem
+import heroPhoneImage from '../assets/hero-phone.webp';
+import heroTabletImage from '../assets/hero-tablet.webp';
+import heroImage from '../assets/hero-fashion-split-bg.webp';  // trimmed 6 px each side (a white stripe was baked into the left edge)
 
+
+// Upright phones and tablets get photos composed for their frame shape (the hero becomes a wide strip on
+// phones and a tall column on tablets), so the garments, not just the faces, stay in view. Keep these in
+// step with the matching rules in styles.css.
+const PHONE_PORTRAIT = '(max-width: 720px) and (orientation: portrait)';
+const TABLET_PORTRAIT = '(min-width: 721px) and (max-width: 1366px) and (orientation: portrait)';
 
 const CAPABILITIES = [
   ['In-house design & styling', "Translate a buyer's vision into a considered product direction, colours, details and specifications."],
@@ -42,20 +53,34 @@ export default function Home() {
   const [brands] = useState(() => shuffle(BRANDS));
   // Which categories appear here (up to 4) and in what order is chosen by approvers in the back office.
   const homeCategories = useProductCategories().filter((category) => category.showOnHome).slice(0, 4);
+  // Scroll parallax: the hero is pinned and recedes as the page slides over it, and the photo
+  // band drifts inside its frame (elements opt in with data-parallax).
+  const mainRef = useRef(null);
+  useParallax(mainRef);
 
   return (
-    <main>
-      <section className="hero">
+    <main ref={mainRef} className="home">
+      <section className="hero" data-parallax="1" data-parallax-mode="top">
         <div className="hero-copy">
-          <div className="eyebrow">APPAREL PRODUCT DEVELOPMENT PARTNER</div>
-          <h1>From Vision<br />to Garment.</h1>
-          <p className="lead">Your ideas. Our expertise. Extraordinary execution.</p>
-          <p className="muted hero-body">From first concept and fabric selection to product development, value-added treatments and finished apparel, we bring your vision to life.</p>
-          <div className="hero-actions"><Link className="button light" to="/portfolio">Explore our products</Link></div>
-          <div className="hero-note">DESIGNING · DEVELOPMENT · SOURCING</div>
+          <div className="hero-copy-inner">
+            <div className="eyebrow">FROM CONCEPT TO FINISHED APPAREL</div>
+            <h1>From Vision<br />to Garment.</h1>
+            <p className="lead">Your ideas. Our expertise. Extraordinary execution.</p>
+            <p className="muted hero-body">From first concept and fabric selection to product development, value-added treatments and finished apparel, we bring your vision to life.</p>
+            <div className="hero-actions"><Link className="button light" to="/portfolio">Explore our products</Link></div>
+            <div className="hero-note">DESIGNING · DEVELOPMENT · SOURCING</div>
+          </div>
         </div>
         <div className="hero-media">
-          <img src={heroImage} alt="Editorial fashion models wearing textured casual garments" width="1024" height="1536" fetchPriority="high" decoding="async" />
+          <picture>
+            <source media={PHONE_PORTRAIT} srcSet={heroPhoneImage} width="1600" height="1200" />
+            <source media={TABLET_PORTRAIT} srcSet={heroTabletImage} width="1000" height="2500" />
+            <img
+              src={heroImage}
+              alt="Editorial fashion models wearing textured casual garments"
+              width="1024" height="1536" fetchPriority="high" decoding="async"
+            />
+          </picture>
         </div>
       </section>
 
@@ -143,6 +168,13 @@ export default function Home() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="image-banner home-band" aria-hidden="true">
+        <picture>
+          <source media={PHONE_PORTRAIT} srcSet={bandPhoneImage} width="1040" height="1040" />
+          <img src={bandImage} alt="" width="1881" height="836" loading="lazy" decoding="async" data-parallax="0.15" data-parallax-clamp="overflow" />
+        </picture>
       </section>
 
       <section className="section cream designer-network">

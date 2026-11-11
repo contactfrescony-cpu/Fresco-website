@@ -20,12 +20,29 @@ function usePendingSignups(isAdmin) {
   return count;
 }
 
+/** Enquiries nobody has picked up yet (status "New"), shown on "Enquiries". */
+function useNewEnquiries(canSee) {
+  const location = useLocation();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!canSee) return undefined;
+    let cancelled = false;
+    fetch('/api/admin/enquiries/summary', { credentials: 'same-origin' })
+      .then((response) => (response.ok ? response.json() : { newCount: 0 }))
+      .then(({ newCount }) => { if (!cancelled) setCount(newCount || 0); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [canSee, location.pathname, location.search]);
+  return count;
+}
+
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const sections = ADMIN_SECTIONS.filter((section) => canAccess(user.role, section));
   const pendingSignups = usePendingSignups(user.role === 'admin');
+  const newEnquiries = useNewEnquiries(sections.some((section) => section.path === 'enquiries'));
 
   const handleLogout = async () => {
     await logout();
@@ -56,6 +73,9 @@ export default function AdminLayout() {
               {section.label}
               {section.path === 'users' && pendingSignups > 0 && (
                 <span className="admin-nav-badge" title={`${pendingSignups} waiting for a role`}>{pendingSignups}</span>
+              )}
+              {section.path === 'enquiries' && newEnquiries > 0 && (
+                <span className="admin-nav-badge" title={`${newEnquiries} new enquiries`}>{newEnquiries}</span>
               )}
             </NavLink>
           ))}

@@ -119,3 +119,7 @@
 .review-toast.is-error{background:#fbeaea;color:#8e1d22;border-left-color:#8e1d22}
 .review-toast span{flex:1}
 .review-toast button{background:none;border:0;font-size:18px;line-height:1;cursor:pointer;color:inherit;padding:0 2px}
+
+/* Link from the page head down to the "Development page photos" section. */
+.review-jump{margin-top:10px!important;font-size:13px}
+.review-jump a{color:var(--green);border-bottom:1px solid var(--gold)}

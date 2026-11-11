@@ -14,10 +14,10 @@ export const ROLE_LABELS = {
 
 export const ADMIN_SECTIONS = [
   { path: 'upload', label: 'Upload Photos', roles: ['contributor'], description: 'Send raw garment photographs to the Google Drive image pipeline, one or many at a time.', ready: true },
-  { path: 'review', label: 'Website Images', roles: ['approver'], description: 'Approve finished photos into the website’s product folders, and manage folders, order and homepage.', ready: true },
+  { path: 'review', label: 'Website Images', roles: ['approver'], description: 'Approve finished photos into the website’s product folders, manage folders, order and homepage, and the Development page photos.', ready: true },
   { path: 'users', label: 'Users & Roles', roles: [], description: 'Assign roles to people who signed up, and enable or disable accounts.', ready: true },
-  { path: 'enquiries', label: 'Enquiries', roles: ['viewer'], description: 'View, assign and follow up on customer enquiries.' },
-  { path: 'analytics', label: 'Analytics', roles: ['viewer'], description: 'Visitors, countries, product interest and enquiry sources.' }
+  { path: 'enquiries', label: 'Enquiries', roles: ['viewer'], description: 'View, assign and follow up on customer enquiries.', ready: true },
+  { path: 'analytics', label: 'Analytics', roles: ['viewer'], description: 'Visitors, countries, product interest and enquiry sources.', ready: true }
 ];
 
 /** True when the role may open a section. An empty list means administrators only. */

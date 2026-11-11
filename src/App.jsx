@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import SmoothScroll from './components/SmoothScroll.jsx';
 import ScrollManager from './components/ScrollManager.jsx';
+import AnalyticsTracker from './components/AnalyticsTracker.jsx';
 import Layout from './components/Layout.jsx';
 import Home from './pages/Home.jsx';
 import { LEGACY_REDIRECTS } from './data/site.js';
@@ -27,6 +28,7 @@ export default function App() {
   return (
     <SmoothScroll>
       <ScrollManager />
+      <AnalyticsTracker />
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />

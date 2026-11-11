@@ -1,36 +1,46 @@
 import usePageMeta from '../hooks/usePageMeta.js';
 import GalleryImage from '../components/GalleryImage.jsx';
 import BriefFlow from '../components/BriefFlow.jsx';
-import measuring from '../assets/development-measuring.webp';
-import thread from '../assets/development-thread.webp';
-import needles from '../assets/development-needles.webp';
-import patterns from '../assets/development-patterns.webp';
+// Self-hosted (Latin only) typefaces used by the software makers' own websites, for the software cards.
+import '@fontsource/montserrat/latin-300.css';   // Optitex headings
+import '@fontsource/montserrat/latin-700.css';   // Wilcom headings
+import './software-fonts.css';                   // Optitex and DMIx body text (Inter, private name)
+import '@fontsource/poppins/latin-400.css';      // Natific body text
+import '@fontsource/poppins/latin-600.css';      // Natific headings
+import '@fontsource/archivo/latin-600.css';      // DMIx headings
+import '@fontsource/roboto/latin-400.css';       // Wilcom body text
+// Software makers' logos, from their official websites (Optitex's recoloured white for the dark card).
+import optitexLogo from '../assets/software/optitex-logo-white.svg';
+import natificLogo from '../assets/software/natific-logo.webp';
+import dmixLogo from '../assets/software/dmix-logo.svg';
+import wilcomLogo from '../assets/software/wilcom-logo.png';
 
-// Each image rotates from its folder in /development-images/<key>/ (see HOW-TO-ADD-IMAGES.txt).
+// Each section's photos (up to 3) come from Google Drive only; approvers manage them in the back office
+// (Website Images → Development page photos).
 const CRAFTS = [
   {
-    key: 'measuring', image: measuring, label: '01 / MEASURING TAPE',
+    key: 'measuring',
     alt: 'Large Indian garment factory quality-control team measuring finished garments',
     title: 'Every good fit begins with an accurate measure.',
     text: 'Measurements establish the foundation for proportion, balance and fit. Our development team translates size requirements and brand expectations into clear specifications that guide pattern construction and sampling.',
     points: ['Body and garment measurement standards', 'Size charts and points of measure', 'Fit review and tolerance alignment']
   },
   {
-    key: 'thread', image: thread, label: '02 / SEWING THREAD',
+    key: 'thread',
     alt: 'Large Indian textile factory thread preparation department',
     title: 'The right thread supports every seam.',
     text: 'Thread choice influences strength, appearance and performance. We consider fibre content, ticket size, colour matching and stitch application so construction choices support both the design and its intended use.',
     points: ['Thread type and strength selection', 'Colour matching and stitch trials', 'Construction quality and seam performance']
   },
   {
-    key: 'needles', image: needles, label: '03 / NEEDLES',
+    key: 'needles',
     alt: 'Large Indian garment production floor with rows of industrial sewing machines',
     title: 'Precision at the point of construction.',
     text: 'Needle selection is matched to fabric weight, structure and the required stitch. Careful trials help prevent damage, skipped stitches and puckering while supporting a clean, consistent finish.',
     points: ['Needle and fabric compatibility', 'Stitch-density and seam trials', 'Finish inspection and refinement']
   },
   {
-    key: 'patterns', image: patterns, label: '04 / PATTERN PIECES',
+    key: 'patterns',
     alt: 'Large Indian apparel pattern and automated cutting department',
     title: 'Turning a silhouette into a repeatable product.',
     text: 'Patterns convert the design into precise components ready for sampling and production. Each piece is shaped, balanced and refined through fitting before grading and handover for bulk execution.',
@@ -52,11 +62,29 @@ const STEPS = [
   ['Prepare', 'Coordinate sourcing and handover for bulk execution.']
 ];
 
+// Each card shows its maker's logo and is styled in the maker's own colours and typefaces
+// (see .software-card--* in styles.css) so visitors recognise the products at a glance.
 const SOFTWARE = [
-  ['01 / CAD & PATTERN', 'Optitex', '2D pattern creation, grading and marker planning, with 3D garment visualisation to review fit and design decisions before physical sampling.', 'https://optitex.com/products/2d-and-3d-cad-software/', 'Official website ↗'],
-  ['02 / DIGITAL COLOUR', 'Natific', 'Digital colour development and approval workflows that help teams set colour standards, collaborate with suppliers and monitor colour consistency.', 'https://www.natific.com/', 'Official website ↗'],
-  ['03 / COLOUR & MATERIAL DATA', 'ColorDigital · DMIx', 'Digital exchange of measured colour, material and surface information to support consistent colour communication across design and supply partners.', 'https://www.colordigital.de/', 'Official website ↗'],
-  ['04 / EMBROIDERY DIGITISING', 'Wilcom EmbroideryStudio E3', 'Embroidery digitising and stitch programming: translating artwork into stitch paths, stitch types and machine-ready embroidery files.', 'https://wilcom.com/embroiderystudio', 'Wilcom software ↗']
+  {
+    key: 'optitex', label: '01 / CAD & PATTERN', name: 'Optitex',
+    text: '2D pattern creation, grading and marker planning, with 3D garment visualisation to review fit and design decisions before physical sampling.',
+    href: 'https://optitex.com/products/2d-and-3d-cad-software/', logo: { src: optitexLogo, width: 1137, height: 190 }
+  },
+  {
+    key: 'natific', label: '02 / DIGITAL COLOUR', name: 'Natific',
+    text: 'Digital colour development and approval workflows that help teams set colour standards, collaborate with suppliers and monitor colour consistency.',
+    href: 'https://www.natific.com/', logo: { src: natificLogo, width: 750, height: 234 }
+  },
+  {
+    key: 'dmix', label: '03 / COLOUR & MATERIAL DATA', name: 'ColorDigital · DMIx',
+    text: 'Digital exchange of measured colour, material and surface information to support consistent colour communication across design and supply partners.',
+    href: 'https://www.dmix.info/', logo: { src: dmixLogo, width: 987, height: 207 }
+  },
+  {
+    key: 'wilcom', label: '04 / EMBROIDERY DIGITISING', name: 'Wilcom EmbroideryStudio E3',
+    text: 'Embroidery digitising and stitch programming: translating artwork into stitch paths, stitch types and machine-ready embroidery files.',
+    href: 'https://wilcom.com/embroiderystudio', logo: { src: wilcomLogo, width: 258, height: 74 }
+  }
 ];
 
 export default function Development() {
@@ -82,10 +110,9 @@ export default function Development() {
           {CRAFTS.map((craft) => (
             <article className="craft-section" key={craft.key}>
               <figure className="craft-image">
-                <GalleryImage gallery={`development-${craft.key}`} fallback={craft.image} alt={craft.alt} width="1200" height="800" />
+                <GalleryImage gallery={`development-${craft.key}`} alt={craft.alt} width="1200" height="800" arrows />
               </figure>
               <div className="craft-copy">
-                <div className="eyebrow">{craft.label}</div>
                 <h2>{craft.title}</h2>
                 <p>{craft.text}</p>
                 <ul>{craft.points.map((point) => <li key={point}>{point}</li>)}</ul>
@@ -138,14 +165,17 @@ export default function Development() {
         <div className="container">
           <div className="eyebrow">DIGITAL TOOLS IN OUR DEVELOPMENT WORKFLOW</div>
           <h2>Technical precision,<br />supported by specialist software.</h2>
+          {/* Each whole card links to the maker's official website. */}
           <div className="software-grid">
-            {SOFTWARE.map(([label, name, text, href, linkText]) => (
-              <article key={name}>
-                <span>{label}</span>
+            {SOFTWARE.map(({ key, label, name, text, href, logo }) => (
+              <a className={`software-card software-card--${key}`} href={href} target="_blank" rel="noopener noreferrer" key={key}>
+                <span className="software-card-arrow" aria-hidden="true">↗</span>
+                <img className="software-logo" src={logo.src} alt={`${name} logo`} width={logo.width} height={logo.height} loading="lazy" decoding="async" />
+                <span className="software-card-label">{label}</span>
                 <h3>{name}</h3>
                 <p>{text}</p>
-                <a href={href} target="_blank" rel="noopener noreferrer">{linkText}</a>
-              </article>
+                <span className="sr-only">(opens the official website in a new tab)</span>
+              </a>
             ))}
           </div>
           <p className="form-note">Software descriptions are concise summaries of the manufacturers’ published capabilities. Fresco’s use of the named editions should be confirmed before launch.</p>

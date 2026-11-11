@@ -17,11 +17,16 @@ const compression = require('compression');
 const helmet = require('helmet');
 const fs = require('fs/promises');
 const { existsSync } = require('fs');
+const { createInsightsRouter } = require('./server/insights.js');
 const { createContactRouter } = require('./server/contact.js');
 const { createAuthRouter } = require('./server/auth.js');
 const { createUsersRouter } = require('./server/users.js');
 const { createUploadsRouter } = require('./server/uploads.js');
 const { createReviewRouter, createCatalogRouter, publishedImagesFor } = require('./server/catalog.js');
+const { createDevelopmentImagesRouter } = require('./server/development-images.js');
+const { createPublicAnalyticsRouter, createAdminAnalyticsRouter } = require('./server/analytics.js');
+const { createAnalyticsEmailRouter, startAnalyticsEmailScheduler, stopAnalyticsEmailScheduler } = require('./server/analytics-email.js');
+const { createEnquiriesRouter, startEnquirySheetSync, stopEnquirySheetSync } = require('./server/enquiries.js');
 const { serveMedia } = require('./server/media.js');
 const { closePool } = require('./server/db.js');
 
@@ -32,17 +37,19 @@ const isProduction = process.env.NODE_ENV === 'production';
 const port = Number.parseInt(process.env.PORT || '8000', 10);
 const host = process.env.HOST || (isDev ? '127.0.0.1' : '0.0.0.0');
 
-// Gallery key (used by <GalleryImage gallery="...">) -> folder relative to the project root.
-// Folders are discovered on each request, so a new category folder works without a restart:
-//   "denim"                 -> gallery/denim
-//   "development-measuring" -> development-images/measuring
+// Gallery key (used by <GalleryImage gallery="...">) -> fallback folder relative to the project root,
+// used for product categories only when the database is unreachable:
+//   "denim" -> gallery/denim
+// Development page sections ("development-measuring" ...) come from Google Drive only (managed in the
+// back office), so they have no folder.
 // Keys are restricted to lowercase letters, digits and hyphens (no path traversal).
 const galleryKeyPattern = /^[a-z0-9][a-z0-9-]{0,40}$/;
+const isDevelopmentGallery = (key) => key.startsWith('development-');
 function galleryFolderFor(key) {
   if (!galleryKeyPattern.test(key)) return null;
-  return key.startsWith('development-') ? `development-images/${key.slice('development-'.length)}` : `gallery/${key}`;
+  return isDevelopmentGallery(key) ? null : `gallery/${key}`;
 }
-const imageFolders = ['gallery', 'development-images'];
+const imageFolders = ['gallery'];
 const imagePattern = /\.(?:jpe?g|png|webp|avif)$/i;
 
 // Client-side routes (rendered by React) and the old static-site URLs that now redirect to them.
@@ -54,6 +61,11 @@ const legacyRedirects = new Map([
   ['/contact.html', '/contact'], ['/privacy.html', '/privacy']
 ]);
 
+// Endpoints Google Analytics 4 sends hits to (per Google's CSP guidance for gtag.js).
+const GA_HOSTS = [
+  'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'
+];
+
 async function createApp(httpServer) {
   const app = express();
   app.disable('x-powered-by');
@@ -62,9 +74,10 @@ async function createApp(httpServer) {
   app.use(helmet({
     // Vite's dev client relies on inline scripts, so the CSP is applied to built output only.
     contentSecurityPolicy: isDev ? false : { directives: {
-      defaultSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:'],  // blob: = previews of photos chosen for upload
-      styleSrc: ["'self'", "'unsafe-inline'"], scriptSrc: ["'self'"],
-      connectSrc: ["'self'"], baseUri: ["'self'"],
+      // blob: = previews of photos chosen for upload. https: = blog images on the Insights page (hosted anywhere). Google hosts below = Google Analytics 4 (gtag.js).
+      defaultSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:', ...GA_HOSTS],
+      styleSrc: ["'self'", "'unsafe-inline'"], scriptSrc: ["'self'", 'https://*.googletagmanager.com'],
+      connectSrc: ["'self'", ...GA_HOSTS], baseUri: ["'self'"],
       formAction: ["'self'", 'mailto:'], frameAncestors: ["'none'"],
       upgradeInsecureRequests: isProduction ? [] : null
     }},
@@ -81,16 +94,26 @@ async function createApp(httpServer) {
   app.use('/api/contact', createContactRouter());
   app.use('/api/auth', createAuthRouter());
   app.use('/api/admin/users', createUsersRouter());
+  app.use('/api/admin/enquiries', createEnquiriesRouter());
   app.use('/api/admin/uploads', createUploadsRouter());
   app.use('/api/admin/review', createReviewRouter());
+  app.use('/api/admin/development-images', createDevelopmentImagesRouter());
+  app.use('/api/admin/analytics/email', createAnalyticsEmailRouter());
+  app.use('/api/admin/analytics', createAdminAnalyticsRouter());
+  app.use('/api/analytics', createPublicAnalyticsRouter());
   app.use('/api/products', createCatalogRouter());
+  app.use('/api/insights', createInsightsRouter());
 
   app.get('/api/gallery/:category', async (req, res, next) => {
-    const folder = galleryFolderFor(req.params.category);
-    if (!folder) return res.status(404).json({ error: 'Unknown gallery category' });
-    // Product categories come from the database (managed by approvers); folders are the fallback.
-    const managed = await publishedImagesFor(req.params.category);
-    if (managed) return res.set('Cache-Control', 'no-store').json({ category: req.params.category, images: managed });
+    const key = req.params.category;
+    if (!galleryKeyPattern.test(key)) return res.status(404).json({ error: 'Unknown gallery category' });
+    // Photos come from the database (managed by approvers, files in Google Drive).
+    const managed = await publishedImagesFor(key);
+    if (managed) return res.set('Cache-Control', 'no-store').json({ category: key, images: managed });
+    // Development page sections have no local fallback: Drive is their only source.
+    if (isDevelopmentGallery(key)) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'gallery_unavailable', images: [] });
+    // Product categories fall back to their gallery/ folder when the database is unreachable.
+    const folder = galleryFolderFor(key);
     try {
       const entries = await fs.readdir(path.join(root, folder), { withFileTypes: true });
       const images = entries.filter((entry) => entry.isFile() && imagePattern.test(entry.name))
@@ -180,10 +203,14 @@ async function main() {
   server.listen(port, host, () => {
     const mode = isDev ? 'development (Vite)' : (process.env.NODE_ENV || 'preview');
     console.log(`Fresco NY listening on http://${host === '0.0.0.0' ? 'localhost' : host}:${port} [${mode}]`);
+    startAnalyticsEmailScheduler();   // daily analytics email (settings on the back-office Analytics page)
+    startEnquirySheetSync();          // copies enquiries to the Google Sheet, retrying any that failed
   });
 
   function shutdown(signal) {
     console.log(`${signal} received; closing HTTP server`);
+    stopAnalyticsEmailScheduler();
+    stopEnquirySheetSync();
     server.close((error) => closePool().finally(() => process.exit(error ? 1 : 0)));
     setTimeout(() => process.exit(1), 10000).unref();
   }

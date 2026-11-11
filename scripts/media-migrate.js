@@ -8,6 +8,9 @@
 //   Drive file and puts a copy in the local cache so visitors never wait for Drive.
 // - Safe to re-run: photos already moved are skipped. The gallery/ files are NOT deleted; they remain the
 //   emergency fallback the website uses only if the database is unreachable.
+// - Development page: each section (kind 'development') that has no photos yet gets the images in
+//   development-images/<key>/ (up to 3), uploaded into its Drive folder. The website reads Development
+//   page photos from Drive only, so after this the development-images/ folder is no longer used.
 //
 // Add --dry-run to list what would be moved without changing anything.
 
@@ -43,6 +46,7 @@ async function main() {
   console.log(`${rows.length} photo(s) to move into Google Drive "Fresco Website Images".`);
   if (dryRun) {
     rows.forEach((row) => console.log(`  ${row.category}: ${row.file_name}`));
+    await migrateDevelopmentSections(pool);
     return;
   }
 
@@ -74,6 +78,50 @@ async function main() {
     }
   }
   console.log(`Done: ${moved} moved, ${failed} failed.${failed ? ' Run the command again to retry the failed ones.' : ''}`);
+  if (failed) process.exitCode = 1;
+  await migrateDevelopmentSections(pool);
+}
+
+/** Development page sections with no photos: upload development-images/<key>/ (up to 3) into Drive. */
+async function migrateDevelopmentSections(pool) {
+  const [sections] = await pool.query(
+    `SELECT c.id, c.slug, c.name,
+            (SELECT COUNT(*) FROM product_images i WHERE i.category_id = c.id AND i.status = 'published') AS photos
+       FROM product_categories c WHERE c.kind = 'development' ORDER BY c.position, c.id`
+  );
+  let uploaded = 0;
+  let failed = 0;
+  for (const section of sections) {
+    if (Number(section.photos) > 0) continue;
+    const dir = path.join(__dirname, '..', 'development-images', section.slug.replace(/^development-/, ''));
+    let files = [];
+    try { files = (await fs.readdir(dir)).filter((name) => /.(?:jpe?g|png|webp)$/i.test(name)).sort().slice(0, 3); } catch { /* no folder */ }
+    if (!files.length) continue;
+    console.log(`Development page, ${section.name}: ${files.length} photo(s) to move into Drive.`);
+    if (dryRun) { files.forEach((name) => console.log(`  ${name}`)); continue; }
+    for (const [index, name] of files.entries()) {
+      try {
+        const buffer = await fs.readFile(path.join(dir, name));
+        const type = sniffImage(buffer);
+        if (!type || !['image/webp', 'image/jpeg', 'image/png'].includes(type.mime)) throw new Error('not a web image');
+        const folderId = await categoryFolder(section.id);
+        const driveId = await uploadWebsiteFile({ folderId, name, mimeType: type.mime, buffer });
+        const fileName = `${driveId}.${type.ext}`;
+        await writeCache(fileName, buffer);
+        await pool.query(
+          `INSERT INTO product_images (status, source, category_id, position, file_name, website_file_id, drive_name, reviewed_at)
+           VALUES ('published', 'drive', ?, ?, ?, ?, ?, UTC_TIMESTAMP())`,
+          [section.id, index + 1, fileName, driveId, name]
+        );
+        uploaded += 1;
+        console.log(`  moved  ${section.name}: ${name}`);
+      } catch (error) {
+        failed += 1;
+        console.error(`  FAILED ${section.name}: ${name} (${error.message})`);
+      }
+    }
+  }
+  if (!dryRun) console.log(`Development page: ${uploaded} photo(s) moved into Drive, ${failed} failed.`);
   if (failed) process.exitCode = 1;
 }
 

@@ -6,6 +6,7 @@
 const path = require('path');
 const fs = require('fs');
 const mysql = require('mysql2/promise');
+const { sslOptions } = require('../server/db.js');
 
 try { process.loadEnvFile(path.join(__dirname, '..', '.env')); } catch { /* no .env file */ }
 
@@ -66,8 +67,37 @@ const MIGRATIONS = [
     table: 'product_images',
     needed: (cols) => !cols.website_file_id,
     sql: 'ALTER TABLE product_images ADD COLUMN website_file_id VARCHAR(128) NULL UNIQUE AFTER drive_folder'
+  },
+  {
+    name: 'product_categories.kind (Development page photo sections)',
+    table: 'product_categories',
+    needed: (cols) => !cols.kind,
+    sql: "ALTER TABLE product_categories ADD COLUMN kind VARCHAR(12) NOT NULL DEFAULT 'product' AFTER id"
   }
 ];
+
+/**
+ * The four photo sections of the Development page (kind 'development'). The slug is the gallery key the
+ * page asks for (/api/gallery/development-<key>). Added only when missing; names can be changed later.
+ */
+const DEVELOPMENT_SECTIONS = [
+  [101, 'development-measuring', '01 · Measuring tape', 'Development – Measuring tape', 1],
+  [102, 'development-thread', '02 · Sewing thread', 'Development – Sewing thread', 2],
+  [103, 'development-needles', '03 · Needles', 'Development – Needles', 3],
+  [104, 'development-patterns', '04 · Pattern pieces', 'Development – Pattern pieces', 4]
+];
+
+async function seedDevelopmentSections(connection) {
+  for (const [id, slug, name, driveFolder, position] of DEVELOPMENT_SECTIONS) {
+    const [result] = await connection.query(
+      `INSERT IGNORE INTO product_categories
+         (id, kind, slug, name, description, home_tagline, drive_folder, position, show_on_products, show_on_home)
+       VALUES (?, 'development', ?, ?, 'Development page photo section.', '-', ?, ?, 0, 0)`,
+      [id, slug, name, driveFolder, position]
+    );
+    if (result.affectedRows) console.log(`Added Development page photo section: ${name}`);
+  }
+}
 
 async function migrate(connection, database) {
   for (const step of MIGRATIONS) {
@@ -115,7 +145,7 @@ async function main() {
 
   const connection = await mysql.createConnection({
     host: DB_HOST, port: Number.parseInt(DB_PORT || '3306', 10),
-    user: DB_USER, password: DB_PASSWORD || '', multipleStatements: true
+    user: DB_USER, password: DB_PASSWORD || '', multipleStatements: true, ssl: sslOptions()
   });
   try {
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
@@ -124,6 +154,7 @@ async function main() {
     await connection.query(fs.readFileSync(path.join(__dirname, '..', 'db', 'schema.sql'), 'utf8'));
     await migrate(connection, DB_NAME);
     await importLegacyGallery(connection);
+    await seedDevelopmentSections(connection);
 
     const [roles] = await connection.query('SELECT name FROM roles ORDER BY id');
     const [[{ users }]] = await connection.query('SELECT COUNT(*) AS users FROM users');

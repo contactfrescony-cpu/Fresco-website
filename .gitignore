@@ -12,3 +12,9 @@ desktop.ini
 
 # Old static site and original source artwork (kept on this PC only)
 legacy-static/
+
+# Google service-account keys (never commit)
+google/*-key.json
+
+# Full-size source artwork for the home hero (15 MB); the site uses the .webp next to it
+src/assets/hero-fashion-split-bg.png

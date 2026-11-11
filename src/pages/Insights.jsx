@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import usePageMeta from '../hooks/usePageMeta.js';
-import { INSIGHTS, INSIGHT_TOPICS } from '../data/insights.js';
+import { INSIGHT_TOPICS } from '../data/insights.js';
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -10,23 +10,28 @@ const STANDARDS = [
   ['03 / ATTRIBUTED', 'Sources credited', 'Information from external publications is clearly attributed and linked.']
 ];
 
+// "202611110930" (YYYYMMDDHHMM, from the blog id) -> a Date, or null when unknown.
+function blogDate(sort) {
+  const m = /^(\d{4})(\d{2})(\d{2})/.exec(sort || '');
+  return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;
+}
+
 function InsightCard({ insight }) {
+  const date = blogDate(insight.sort);
   return (
     <article className="insight-card">
-      {insight.image && (
-        <div className="insight-image"><img src={insight.image} alt="" loading="lazy" /></div>
-      )}
-      <div className="insight-meta">
-        <span className="eyebrow">{insight.topic}</span>
-        <time dateTime={insight.date}>{dateFormat.format(new Date(insight.date))}</time>
-      </div>
-      <h3>{insight.title}</h3>
-      <p className="muted">{insight.summary}</p>
-      {insight.source && (
-        <p className="insight-source">
-          Source: <a href={insight.source.url} target="_blank" rel="noopener noreferrer">{insight.source.name} ↗</a>
-        </p>
-      )}
+      <a className="insight-link" href={insight.link} target="_blank" rel="noopener noreferrer">
+        {insight.image && (
+          <div className="insight-image"><img src={insight.image} alt="" loading="lazy" referrerPolicy="no-referrer" /></div>
+        )}
+        <div className="insight-meta">
+          <span className="eyebrow">{insight.tab}</span>
+          {date && <time dateTime={date.toISOString().slice(0, 10)}>{dateFormat.format(date)}</time>}
+        </div>
+        <h3>{insight.title}</h3>
+        {insight.description && <p className="muted">{insight.description}</p>}
+        <span className="insight-read">Read the full blog ↗</span>
+      </a>
     </article>
   );
 }
@@ -37,12 +42,29 @@ export default function Insights() {
     'Fabric innovation, garment dyeing and washing, sustainable chemistry, automation and digital supply-chain developments, selected by Fresco NY.'
   );
   const [topic, setTopic] = useState('All');
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = (query = '') => fetch(`/api/insights${query}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : { insights: [] }))
+      .then((data) => {
+        if (!controller.signal.aborted && Array.isArray(data.insights)) setInsights(data.insights);
+        return data;
+      });
+    // The server answers at once with its saved copy; if it is re-reading Drive, ask again and wait for the new list.
+    load()
+      .then((data) => (data.refreshing ? load('?wait=1') : null))
+      .catch(() => {})
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, []);
+
+  // The server sends every tab's latest blogs (max 20 each), newest first; "All" shows them together.
   const items = useMemo(
-    () => INSIGHTS
-      .filter((item) => topic === 'All' || item.topic === topic)
-      .sort((a, b) => b.date.localeCompare(a.date)),
-    [topic]
+    () => insights.filter((item) => topic === 'All' || item.tab === topic),
+    [insights, topic]
   );
 
   return (
@@ -73,8 +95,10 @@ export default function Insights() {
 
           {items.length > 0 ? (
             <div className="insight-grid">
-              {items.map((insight) => <InsightCard key={insight.slug} insight={insight} />)}
+              {items.map((insight) => <InsightCard key={`${insight.tab}/${insight.id}`} insight={insight} />)}
             </div>
+          ) : loading ? (
+            <div className="insight-empty"><p className="muted">Loading insights…</p></div>
           ) : (
             <div className="insight-empty">
               <h2 className="heading-md">{topic === 'All' ? 'Our first insights are on their way.' : `No ${topic.toLowerCase()} insights yet.`}</h2>

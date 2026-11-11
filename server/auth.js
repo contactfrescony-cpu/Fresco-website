@@ -223,4 +223,4 @@ function createAuthRouter() {
   return router;
 }
 
-module.exports = { createAuthRouter, requireRole, jsonOnly, ROLES, GENDERS, USERNAME_PATTERN };
+module.exports = { createAuthRouter, requireRole, jsonOnly, rateLimiter, ROLES, GENDERS, USERNAME_PATTERN };

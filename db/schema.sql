@@ -69,8 +69,12 @@ CREATE TABLE IF NOT EXISTS image_uploads (
 -- The set is fixed: approvers can rename, describe, reorder and show/hide them, but not create new ones.
 -- slug is the permanent key used in URLs (/portfolio#tshirts); drive_folder is the matching
 -- category folder the image pipeline writes to inside "Processed Images" (used for suggestions).
+-- kind 'development' = one of the four photo sections of the Development page (ids 101-104, slugs
+-- "development-<key>", up to 3 photos each, uploaded directly by approvers; never on Home/Products).
+-- Those rows are added by scripts/db-setup.js, after the column migration has run on older databases.
 CREATE TABLE IF NOT EXISTS product_categories (
   id               TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  kind             VARCHAR(12)  NOT NULL DEFAULT 'product',  -- product | development
   slug             VARCHAR(40)  NOT NULL UNIQUE,
   name             VARCHAR(60)  NOT NULL,
   description      VARCHAR(255) NOT NULL,
@@ -118,4 +122,30 @@ CREATE TABLE IF NOT EXISTS product_images (
   CONSTRAINT fk_images_category  FOREIGN KEY (category_id) REFERENCES product_categories (id),
   CONSTRAINT fk_images_suggested FOREIGN KEY (suggested_category_id) REFERENCES product_categories (id),
   CONSTRAINT fk_images_reviewer  FOREIGN KEY (reviewed_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Customer enquiries from the website's Contact page (shown on the back-office "Enquiries" page).
+-- This table is the master copy; each enquiry is also copied to the Google Sheet (google/enquiries-sheet.gs).
+-- revision goes up on every staff change; sheet_revision is the last revision written to the Sheet,
+-- so a row whose sheet_revision < revision still has to be sent (retried automatically).
+CREATE TABLE IF NOT EXISTS enquiries (
+  id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  company        VARCHAR(160) NOT NULL,
+  email          VARCHAR(200) NOT NULL,
+  phone          VARCHAR(32)  NOT NULL,
+  purpose        VARCHAR(80)  NOT NULL,
+  message        TEXT         NULL,
+  country_code   CHAR(2)      NULL,                 -- from the visitor's IP address, when known
+  status         VARCHAR(12)  NOT NULL DEFAULT 'new', -- new | contacted | closed | spam
+  assigned_to    INT UNSIGNED NULL,
+  notes          TEXT         NULL,                 -- internal follow-up notes (never sent to the customer)
+  email_status   VARCHAR(12)  NOT NULL DEFAULT 'pending', -- pending | sent | failed | off (SMTP not set up)
+  revision       INT UNSIGNED NOT NULL DEFAULT 1,
+  sheet_revision INT UNSIGNED NOT NULL DEFAULT 0,
+  sheet_error    VARCHAR(255) NULL,
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_enquiries_status (status, created_at),
+  INDEX idx_enquiries_created (created_at),
+  CONSTRAINT fk_enquiries_assignee FOREIGN KEY (assigned_to) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -12,7 +12,7 @@ For editing with live reload, open a terminal in this folder and run:
    npm run dev        (then visit http://localhost:8000)
 
 Product photos:      gallery/<category>/          (see gallery/HOW-TO-ADD-IMAGES.txt)
-Development photos:  development-images/<step>/   (see development-images/HOW-TO-ADD-IMAGES.txt)
+Development photos:  Google Drive only — back office, Website Images → Development page photos
 Images added to these folders appear without rebuilding the site.
 
 This is a local website preview, not a live deployment to frescony.uk. The enquiry

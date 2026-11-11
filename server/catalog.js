@@ -105,6 +105,12 @@ async function categoryFolder(categoryId) {
   return saved.drive_folder_id;
 }
 
+/** Pipeline photos may only go into product folders (Development page sections take direct uploads). */
+async function assertProductCategory(categoryId) {
+  const [[row]] = await getPool().query("SELECT id FROM product_categories WHERE id = ? AND kind = 'product'", [categoryId]);
+  if (!row) throw new HttpError(400, 'invalid_category');
+}
+
 /* ---------- Drive sync ---------- */
 
 let syncRunning = null;
@@ -123,7 +129,7 @@ async function sync({ force = false } = {}) {
       rows.forEach((row) => known.add(row.drive_file_id));
     }
     const fresh = files.filter((file) => !known.has(file.id));
-    const [categories] = await pool.query('SELECT id, drive_folder FROM product_categories');
+    const [categories] = await pool.query("SELECT id, drive_folder FROM product_categories WHERE kind = 'product'");
     const byFolder = new Map(categories.map((c) => [c.drive_folder.toLowerCase(), c.id]));
 
     await fs.mkdir(PENDING_DIR, { recursive: true });
@@ -168,7 +174,7 @@ async function loadReviewState() {
   const pool = getPool();
   const [categories] = await pool.query(
     `SELECT id, slug, name, description, home_tagline, position, show_on_home, show_on_products
-       FROM product_categories ORDER BY position, id`
+       FROM product_categories WHERE kind = 'product' ORDER BY position, id`
   );
   const [images] = await pool.query(
     `SELECT id, category_id, position, source, file_name FROM product_images
@@ -201,7 +207,7 @@ async function loadReviewState() {
 async function publicCategories() {
   const [rows] = await getPool().query(
     `SELECT slug, name, description, home_tagline, show_on_home, show_on_products
-       FROM product_categories ORDER BY position, id`
+       FROM product_categories WHERE kind = 'product' ORDER BY position, id`
   );
   return rows.map((r) => ({
     slug: r.slug, name: r.name, description: r.description, homeTagline: r.home_tagline,
@@ -211,7 +217,7 @@ async function publicCategories() {
 
 /**
  * Published photo URLs of a category, in order. Returns null when the database is not available
- * or the slug is not a product category, so the caller can fall back to the gallery/ folders.
+ * or the slug is not a known category (product categories then fall back to their gallery/ folder).
  */
 async function publishedImagesFor(slug) {
   const pool = getPool();
@@ -287,6 +293,7 @@ function createReviewRouter() {
       "SELECT id, file_name, drive_file_id, drive_name FROM product_images WHERE id = ? AND status = 'pending'", [id]
     );
     if (!photo) throw new HttpError(409, 'not_pending');
+    await assertProductCategory(categoryId);
     const folderId = await categoryFolder(categoryId);
     const ext = path.extname(photo.file_name).slice(1).toLowerCase();
 
@@ -362,6 +369,8 @@ function createReviewRouter() {
     );
     if (!photo) throw new HttpError(404, 'not_found');
     if (photo.category_id === categoryId) throw new HttpError(400, 'same_folder');
+    await assertProductCategory(categoryId);
+    await assertProductCategory(photo.category_id);
 
     const toFolder = await categoryFolder(categoryId);
     const fromFolder = photo.source === 'drive' ? await categoryFolder(photo.category_id) : null;
@@ -433,7 +442,7 @@ function createReviewRouter() {
     const ids = idList(req.body?.ids);
     if (!ids) throw new HttpError(400, 'invalid_order');
     await withTransaction(async (conn) => {
-      const [rows] = await conn.query('SELECT id FROM product_categories FOR UPDATE');
+      const [rows] = await conn.query("SELECT id FROM product_categories WHERE kind = 'product' FOR UPDATE");
       if (rows.length !== ids.length || !rows.every((r) => ids.includes(r.id))) throw new HttpError(409, 'order_out_of_date');
       await setPositions(conn, 'product_categories', ids);
     });
@@ -482,11 +491,11 @@ function createReviewRouter() {
     await withTransaction(async (conn) => {
       if (body.showOnHome === true) {
         const [[{ count }]] = await conn.query(
-          'SELECT COUNT(*) AS count FROM product_categories WHERE show_on_home = 1 AND id <> ? FOR UPDATE', [id]
+          "SELECT COUNT(*) AS count FROM product_categories WHERE kind = 'product' AND show_on_home = 1 AND id <> ? FOR UPDATE", [id]
         );
         if (count >= MAX_ON_HOME) throw new HttpError(400, 'home_limit');
       }
-      const [result] = await conn.query(`UPDATE product_categories SET ${sets.join(', ')} WHERE id = ?`, [...values, id]);
+      const [result] = await conn.query(`UPDATE product_categories SET ${sets.join(', ')} WHERE id = ? AND kind = 'product'`, [...values, id]);
       if (!result.affectedRows) throw new HttpError(404, 'not_found');
     });
     // Keep the Drive folder's name in step with the website (best effort; the folder id never changes).
@@ -517,4 +526,8 @@ function createCatalogRouter() {
   return router;
 }
 
-module.exports = { createReviewRouter, createCatalogRouter, publishedImagesFor, sync, categoryFolder, MAX_PER_CATEGORY };
+module.exports = {
+  createReviewRouter, createCatalogRouter, publishedImagesFor, sync, categoryFolder, MAX_PER_CATEGORY,
+  // shared with server/development-images.js
+  HttpError, withTransaction, setPositions, retireFromDrive, publicUrl, idParam, idList
+};
