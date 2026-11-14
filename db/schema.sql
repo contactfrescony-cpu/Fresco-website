@@ -149,3 +149,22 @@ CREATE TABLE IF NOT EXISTS enquiries (
   INDEX idx_enquiries_created (created_at),
   CONSTRAINT fk_enquiries_assignee FOREIGN KEY (assigned_to) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Persistent enquiry email queue and configurable response deadline.
+CREATE TABLE IF NOT EXISTS enquiry_email_settings (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  response_hours DECIMAL(7,2) NOT NULL DEFAULT 4,
+  alerts_enabled TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT IGNORE INTO enquiry_email_settings (id) VALUES (1);
+
+CREATE TABLE IF NOT EXISTS enquiry_email_jobs (
+  enquiry_id INT UNSIGNED NOT NULL,
+  kind VARCHAR(16) NOT NULL,
+  sent_at DATETIME NULL,
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_error VARCHAR(500) NULL,
+  PRIMARY KEY (enquiry_id, kind),
+  INDEX due_jobs (sent_at, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

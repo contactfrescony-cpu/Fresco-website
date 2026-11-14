@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { jsonBody, requestJson } from '../requestJson.js';
+import EnquiryEmailSettings from './EnquiryEmailSettings.jsx';
 
 // Customer enquiries from the Contact page. Saved in the database (this page), emailed to the inbox,
 // and copied to the Google Sheet. Staff follow them up here: status, who handles it, internal notes.
 
 const STATUS_TABS = [
-  { key: 'all', label: 'All' },
   { key: 'new', label: 'New' },
+  { key: 'overdue', label: 'Overdue' },
   { key: 'contacted', label: 'Contacted' },
   { key: 'closed', label: 'Closed' },
-  { key: 'spam', label: 'Spam' }
+  { key: 'spam', label: 'Spam' },
+  { key: 'all', label: 'All' }
 ];
 const STATUS_LABELS = { new: 'New', contacted: 'Contacted', closed: 'Closed', spam: 'Spam' };
 const STATUS_OPTIONS = ['new', 'contacted', 'closed', 'spam'];
@@ -18,9 +20,13 @@ const EMAIL_LABELS = { sent: 'Email sent', failed: 'Email failed', pending: 'Ema
 
 const dateTimeFormat = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const fmtDateTime = (value) => (value ? dateTimeFormat.format(new Date(value)) : '—');
+const waitingHours = (enquiry) => Math.floor(Math.max(0, Date.now() - new Date(enquiry.createdAt).getTime()) / 360000) / 10;
+const isOverdue = (enquiry, settings) => settings?.alertsEnabled && enquiry.status === 'new'
+  && Date.now() - new Date(enquiry.createdAt).getTime() >= settings.responseHours * 3600000;
+const THANKYOU_LABELS = { sent: 'Thank-you email sent', failed: 'Thank-you email failed (will retry)', pending: 'Thank-you email queued', unavailable: 'No thank-you email recorded' };
 
 /** Full enquiry with follow-up controls, shown in a modal dialog. */
-function EnquiryDetail({ enquiry, staff, busy, onChange, onClose }) {
+function EnquiryDetail({ enquiry, staff, busy, onChange, onClose, emailSettings }) {
   const [notes, setNotes] = useState(enquiry.notes);
   useEffect(() => { setNotes(enquiry.notes); }, [enquiry.id, enquiry.notes]);
   const notesDirty = notes.trim() !== enquiry.notes.trim();
@@ -37,6 +43,7 @@ function EnquiryDetail({ enquiry, staff, busy, onChange, onClose }) {
         <button type="button" onClick={onClose} aria-label="Close" className="admin-dialog-close">×</button>
       </div>
 
+      {isOverdue(enquiry, emailSettings) && <p className="enquiry-overdue-alert" role="alert">This enquiry has been waiting for {waitingHours(enquiry)} hours. Please reply ASAP.</p>}
       <dl className="enquiry-facts">
         <div><dt>Email</dt><dd><a href={`mailto:${enquiry.email}?subject=${replySubject}`}>{enquiry.email}</a></dd></div>
         <div><dt>Phone</dt><dd><a href={`tel:${enquiry.phone.replace(/[^\d+]/g, '')}`}>{enquiry.phone}</a></dd></div>
@@ -45,6 +52,7 @@ function EnquiryDetail({ enquiry, staff, busy, onChange, onClose }) {
           <dt>Delivery</dt>
           <dd className="muted">
             {EMAIL_LABELS[enquiry.emailStatus] || enquiry.emailStatus}
+            {' · '}{THANKYOU_LABELS[enquiry.thankyouStatus]}
             {' · '}
             {enquiry.inSheet ? 'In Google Sheet' : enquiry.sheetError ? 'Not in Google Sheet yet (will retry)' : 'Google Sheet pending'}
           </dd>
@@ -149,7 +157,11 @@ export default function EnquiriesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, query, page, onlyId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 60000);
+    return () => clearInterval(timer);
+  }, [load]);
 
   // Search as you type, after a short pause.
   useEffect(() => {
@@ -200,13 +212,14 @@ export default function EnquiriesPage() {
       <header className="admin-page-head">
         <div className="eyebrow">ENQUIRIES</div>
         <h1>Enquiries</h1>
-        <p className="muted">Every enquiry sent from the website’s Contact page. Each one is also emailed to the team and copied to the Google Sheet.</p>
+        <p className="muted">Enquiries saved from the Contact page. Email notifications and Google Sheet copies are sent when those services are configured.</p>
       </header>
+      <EnquiryEmailSettings onSave={load} />
 
       {data && (
         <div className={`enquiry-sheet-bar${data.sheet.configured && !data.sheet.lastError ? '' : ' is-warning'}`}>
           {!data.sheet.configured ? (
-            <span>Google Sheet not connected: enquiries are saved here and emailed, but not copied to a Sheet yet.</span>
+            <span>Google Sheet not connected: enquiries are saved here, but not copied to a Sheet yet.</span>
           ) : (
             <>
               <span>
@@ -229,7 +242,7 @@ export default function EnquiriesPage() {
             return (
               <button key={tab.key} type="button" className={active ? 'is-active' : ''} aria-pressed={active}
                 onClick={() => updateParams({ status: tab.key, page: 1, id: '' })}>
-                {tab.label} {count > 0 && <span className={tab.key === 'new' ? 'is-alert' : undefined}>{count}</span>}
+                {tab.label} {count > 0 && <span className={tab.key === 'new' || tab.key === 'overdue' ? 'is-alert' : undefined}>{count}</span>}
               </button>
             );
           })}
@@ -252,7 +265,7 @@ export default function EnquiriesPage() {
       {!data && !error && <div className="admin-panel">Loading enquiries…</div>}
       {data && enquiries.length === 0 && (
         <div className="admin-panel admin-placeholder">
-          {onlyId ? 'This enquiry was not found.' : query ? 'No enquiries match your search.' : status === 'all' ? 'No enquiries yet.' : `No ${STATUS_LABELS[status].toLowerCase()} enquiries.`}
+          {onlyId ? 'This enquiry was not found.' : query ? 'No enquiries match your search.' : status === 'all' ? 'No enquiries yet.' : status === 'overdue' ? 'No overdue enquiries.' : `No ${STATUS_LABELS[status].toLowerCase()} enquiries.`}
         </div>
       )}
 
@@ -272,13 +285,14 @@ export default function EnquiriesPage() {
             </thead>
             <tbody>
               {enquiries.map((enquiry) => (
-                <tr key={enquiry.id} className={enquiry.status === 'new' ? 'is-pending' : undefined}>
+                <tr key={enquiry.id} className={isOverdue(enquiry, data.emailSettings) ? 'is-overdue' : enquiry.status === 'new' ? 'is-pending' : undefined}>
                   <td data-label="Received">
                     <div>{fmtDateTime(enquiry.createdAt)}</div>
                     <div className="muted">#{enquiry.id}{enquiry.country && ` · ${enquiry.country}`}</div>
                   </td>
                   <td data-label="Company">
                     <strong>{enquiry.company}</strong>
+                    {isOverdue(enquiry, data.emailSettings) && <div className="enquiry-overdue-text">Waiting {waitingHours(enquiry)} hours — reply ASAP</div>}
                     {enquiry.message && <div className="muted enquiry-snippet">{enquiry.message}</div>}
                   </td>
                   <td data-label="Contact">
@@ -318,6 +332,7 @@ export default function EnquiriesPage() {
         onClick={(e) => { if (e.target === dialog.current) setOpen(null); }}>
         {open && (
           <EnquiryDetail enquiry={open} staff={data?.staff || []} busy={busyId === open.id}
+            emailSettings={data?.emailSettings}
             onChange={(patch) => change(open, patch)} onClose={() => setOpen(null)} />
         )}
       </dialog>

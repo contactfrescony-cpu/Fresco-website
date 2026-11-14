@@ -8,14 +8,15 @@
 //
 // Configure with environment variables (or a .env file next to server.js):
 //   SMTP_HOST, SMTP_PORT (default 587), SMTP_SECURE ("true" for port 465),
-//   SMTP_USER, SMTP_PASS, CONTACT_TO (default info@frescony.uk), CONTACT_FROM (default SMTP_USER)
+//   SMTP_USER, SMTP_PASS, CONTACT_TO (default connectfrescony@gmail.com), CONTACT_FROM (default SMTP_USER)
 // With neither SMTP nor the database set up, the endpoint answers 503 and the page opens an email draft instead.
 
 const express = require('express');
 const geoip = require('geoip-lite');
 const { createMailTransport, EMAIL_PATTERN } = require('./mailer.js');
 const { getPool } = require('./db.js');
-const { saveEnquiry, setEmailStatus, queueSheetSync, adminLink } = require('./enquiries.js');
+const { saveEnquiry, queueSheetSync, adminLink } = require('./enquiries.js');
+const { buildEnquiryEmail, confirmTeamEmail, wakeEnquiryEmailWorker } = require('./enquiry-email.js');
 
 const FIELD_LIMITS = { company: 160, email: 200, phone: 32, purpose: 80, message: 5000 };
 const REQUIRED = ['company', 'email', 'phone', 'purpose'];
@@ -46,7 +47,7 @@ function countryOf(req) {
 
 function createContactRouter(env = process.env) {
   const router = express.Router();
-  const to = env.CONTACT_TO || 'info@frescony.uk';
+  const to = env.CONTACT_TO || 'connectfrescony@gmail.com';
   const from = env.CONTACT_FROM || env.SMTP_USER || to;
   const transporter = createMailTransport(env);
 
@@ -105,24 +106,27 @@ function createContactRouter(env = process.env) {
       if (!transporter) return res.status(503).json({ error: 'not_configured' });
       try {
         await sendEnquiryEmail(data, null);
-        return res.json({ ok: true });
+        // Team delivery succeeded: a failed acknowledgement must not make the visitor resubmit.
+        await transporter.sendMail(buildEnquiryEmail('thankyou', data)).catch((error) => {
+          console.error('Contact thank-you email failed (no database for retry):', error.message);
+        });
+        return res.json({ ok: true, emailSent: true });
       } catch (error) {
         console.error(`[${new Date().toISOString()}] contact email failed:`, error.message);
         return res.status(502).json({ error: 'send_failed' });
       }
     }
 
-    // Saved: answer the visitor straight away; the email and the Google Sheet copy follow in the background.
-    res.json({ ok: true });
-    if (transporter) {
-      sendEnquiryEmail(data, id)
-        .then(() => setEmailStatus(id, 'sent'), (error) => {
-          console.error(`[${new Date().toISOString()}] contact email for enquiry #${id} failed:`, error.message);
-          return setEmailStatus(id, 'failed');
-        })
-        .catch(() => { /* database briefly unavailable; the enquiry itself is saved */ });
-    }
+    // Keep the loader visible until the team email is accepted by SMTP, up to 20 seconds.
+    // If mail is delayed, the saved enquiry and email jobs remain safe to retry in the background.
+    wakeEnquiryEmailWorker();
     queueSheetSync();
+    let emailSent = false;
+    if (transporter) {
+      try { emailSent = await confirmTeamEmail(id); }
+      catch (error) { console.error(`Enquiry #${id} email confirmation unavailable:`, error.message); }
+    }
+    return res.json({ ok: true, emailSent });
   });
 
   /** "New enquiry" email to the Fresco NY inbox; replying goes straight to the customer. */

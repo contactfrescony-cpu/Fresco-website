@@ -1,4 +1,4 @@
-export const CONTACT_EMAIL = 'info@frescony.uk';
+export const CONTACT_EMAIL = 'connectfrescony@gmail.com';
 
 /** Postal address, one line each. The last line names the country so international visitors see it is India. */
 export const ADDRESS_LINES = ['No: 520, Pudur Pirivu, Dharapuram Road,', 'Tiruppur – 641608, Tamil Nadu,', 'India'];

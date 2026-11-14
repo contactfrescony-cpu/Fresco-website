@@ -1,0 +1,110 @@
+[
+  {
+    "key": "smeta",
+    "url": "https://images.squarespace-cdn.com/content/v1/67689a53b36eeb5b898c2623/23ebcb90-d55b-4906-ae45-00270c9972d4/SMETA-Logo.png",
+    "page": "https://www.farmwisemarketing.co.za/",
+    "description": "SMETA mark",
+    "file": "smeta.webp",
+    "width": 600,
+    "height": 188
+  },
+  {
+    "key": "ics",
+    "url": "https://ics-asso.org/wp-content/uploads/2018/04/ICS_Logotypes_Couleur_desktop.png",
+    "page": "https://ics-asso.org/",
+    "description": "ICS official logo",
+    "file": "ics.webp",
+    "width": 201,
+    "height": 200
+  },
+  {
+    "key": "slcp",
+    "url": "https://images.squarespace-cdn.com/content/v1/5f5bffb630536e3e5586bb4a/54283783-6e5e-45e1-a9f2-c5573c07e40f/0+SLCP_primary.png?format=1500w",
+    "page": "https://slconvergence.org/",
+    "description": "SLCP official logo",
+    "file": "slcp.webp",
+    "width": 600,
+    "height": 136
+  },
+  {
+    "key": "gots",
+    "url": "https://global-standards.org/images/logos/gots-logo_rgb_2018_transp.png",
+    "page": "https://global-standards.org/",
+    "description": "GOTS official logo",
+    "file": "gots.webp",
+    "width": 201,
+    "height": 200
+  },
+  {
+    "key": "fairtrade",
+    "url": "https://www.fairtrade.net/content/dam/fairtrade/global/logo/fairtrade-international.svg",
+    "page": "https://www.fairtrade.net/en.html",
+    "description": "Fairtrade International official logo",
+    "file": "fairtrade.webp",
+    "width": 168,
+    "height": 200
+  },
+  {
+    "key": "ctpat",
+    "url": "https://www.cbp.gov/sites/default/files/styles/medium/public/CTPAT-logo-web-banner3.jpg.webp?itok=7ppq8et4",
+    "page": "https://www.cbp.gov/border-security/ports-entry/cargo-security/ctpat",
+    "description": "CTPAT program graphic",
+    "file": "ctpat.webp",
+    "width": 600,
+    "height": 135
+  },
+  {
+    "key": "iso-14001",
+    "url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/leaf.svg",
+    "page": "https://lucide.dev/",
+    "description": "Illustrative symbol (not a certification mark)",
+    "file": "iso-14001.webp",
+    "width": 200,
+    "height": 200
+  },
+  {
+    "key": "iso-50001",
+    "url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/zap.svg",
+    "page": "https://lucide.dev/",
+    "description": "Illustrative symbol (not a certification mark)",
+    "file": "iso-50001.webp",
+    "width": 162,
+    "height": 200
+  },
+  {
+    "key": "iso-9001",
+    "url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/badge-check.svg",
+    "page": "https://lucide.dev/",
+    "description": "Illustrative symbol (not a certification mark)",
+    "file": "iso-9001.webp",
+    "width": 200,
+    "height": 200
+  },
+  {
+    "key": "tqm",
+    "url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/settings-2.svg",
+    "page": "https://lucide.dev/",
+    "description": "Illustrative symbol (not a certification mark)",
+    "file": "tqm.webp",
+    "width": 200,
+    "height": 200
+  },
+  {
+    "key": "product-safety",
+    "url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/shield-check.svg",
+    "page": "https://lucide.dev/",
+    "description": "Illustrative symbol (not a certification mark)",
+    "file": "product-safety.webp",
+    "width": 162,
+    "height": 200
+  },
+  {
+    "key": "disney",
+    "url": "https://thewaltdisneycompany.com/",
+    "page": "https://thewaltdisneycompany.com/",
+    "description": "Official Walt Disney Company logo",
+    "file": "disney.webp",
+    "width": 373,
+    "height": 200
+  }
+]

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import usePageMeta from '../hooks/usePageMeta.js';
 import { ADDRESS_LINES, CONTACT_EMAIL, PURPOSES } from '../data/site.js';
@@ -37,6 +37,14 @@ export default function Contact() {
   // idle | sending | sent | draft (email app opened) | error
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  const confirmation = useRef(null);
+
+  useEffect(() => {
+    if (status !== 'sent') return;
+    confirmation.current?.focus({ preventScroll: true });
+    confirmation.current?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+  }, [status]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -54,8 +62,12 @@ export default function Contact() {
         body: JSON.stringify(payload)
       });
       if (response.ok) {
+        const result = await response.json();
+        setEmailSent(Boolean(result.emailSent));
         setStatus('sent');
-        setMessage(`Thank you — your enquiry has reached our team. We'll reply to ${payload.email}.`);
+        setMessage(result.emailSent
+          ? 'The team will contact you shortly.'
+          : 'Your enquiry has been received. The email notification is queued, and the team will contact you shortly.');
         form.reset();
         return;
       }
@@ -101,7 +113,15 @@ export default function Contact() {
           </div>
 
           <div className="form-panel">
-            <form id="enquiry-form" onSubmit={handleSubmit}>
+            {status === 'sent' ? (
+              <div className="enquiry-confirmation" ref={confirmation} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true">
+                <span className="enquiry-confirmation-icon" aria-hidden="true">✓</span>
+                <h2>{emailSent ? 'Email sent' : 'Enquiry received'}</h2>
+                <p>{message}</p>
+                <button type="button" className="button" onClick={() => { setStatus('idle'); setMessage(''); }}>Send another enquiry</button>
+              </div>
+            ) : (
+            <form id="enquiry-form" onSubmit={handleSubmit} aria-busy={status === 'sending'}>
               <div className="form-grid">
                 <div className="field full">
                   <label htmlFor="company">Company name *</label>
@@ -136,12 +156,13 @@ export default function Contact() {
                 </div>
                 <div className="field full">
                   <button className="button" type="submit" disabled={status === 'sending'}>
-                    {status === 'sending' ? 'Sending…' : 'Send enquiry ↗'}
+                    {status === 'sending' ? <><span className="enquiry-spinner" aria-hidden="true" /> Sending…</> : 'Send enquiry ↗'}
                   </button>
+                  {status === 'sending' && <div className="enquiry-sending" role="status">Sending your enquiry email. Please wait…</div>}
                   <p className="form-note privacy-note">
                     We use these details only to respond to your enquiry. See our <Link to="/privacy">privacy notice</Link>.
                   </p>
-                  {(status === 'sent' || status === 'draft') && <div className="success is-visible" role="status">{message}</div>}
+                  {status === 'draft' && <div className="success is-visible" role="status">{message}</div>}
                   {status === 'error' && (
                     <div className="form-error" role="alert">
                       {message} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
@@ -150,6 +171,7 @@ export default function Contact() {
                 </div>
               </div>
             </form>
+            )}
           </div>
         </div>
       </section>

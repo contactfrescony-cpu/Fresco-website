@@ -20,6 +20,7 @@
 const express = require('express');
 const { getPool } = require('./db.js');
 const { requireRole, jsonOnly } = require('./auth.js');
+const { ensureEmailTables, queueInitialEmails, emailSettings } = require('./enquiry-email.js');
 
 const STATUSES = ['new', 'contacted', 'closed', 'spam'];
 const STATUS_LABELS = { new: 'New', contacted: 'Contacted', closed: 'Closed', spam: 'Spam' };
@@ -49,13 +50,26 @@ function countryName(code) {
 
 /** Stores a validated enquiry and returns its id. emailStatus: 'pending' (will be emailed) or 'off'. */
 async function saveEnquiry(data, { countryCode = null, emailStatus = 'pending' } = {}) {
-  const [result] = await getPool().query(
-    `INSERT INTO enquiries (company, email, phone, purpose, message, country_code, email_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [data.company, data.email, data.phone, data.purpose, data.message || null,
-      /^[A-Z]{2}$/.test(countryCode || '') ? countryCode : null, emailStatus]
-  );
-  return result.insertId;
+  const pool = getPool();
+  await ensureEmailTables(pool);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.query(
+      `INSERT INTO enquiries (company, email, phone, purpose, message, country_code, email_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [data.company, data.email, data.phone, data.purpose, data.message || null,
+        /^[A-Z]{2}$/.test(countryCode || '') ? countryCode : null, emailStatus]
+    );
+    await queueInitialEmails(connection, result.insertId);
+    await connection.commit();
+    return result.insertId;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function setEmailStatus(id, status) {
@@ -203,11 +217,15 @@ const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const escapeLike = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 /** WHERE clause for the list and the CSV export. "all" means everything except spam. */
-function listFilter(query) {
-  const status = STATUSES.includes(query.status) ? query.status : 'all';
+function listFilter(query, settings) {
+  const status = query.status === 'overdue' || STATUSES.includes(query.status) ? query.status : 'all';
   const search = text(query.q).slice(0, SEARCH_MAX);
-  const where = [status === 'all' ? "e.status <> 'spam'" : 'e.status = ?'];
-  const values = status === 'all' ? [] : [status];
+  const where = [status === 'overdue'
+    ? "e.status = 'new' AND ? = 1 AND e.created_at <= TIMESTAMPADD(SECOND, -?, UTC_TIMESTAMP())"
+    : status === 'all' ? "e.status <> 'spam'" : 'e.status = ?'];
+  const values = status === 'overdue'
+    ? [settings?.alertsEnabled ? 1 : 0, Math.round((settings?.responseHours || 4) * 3600)]
+    : status === 'all' ? [] : [status];
   if (search) {
     where.push('(e.company LIKE ? OR e.email LIKE ? OR e.phone LIKE ? OR e.message LIKE ? OR e.purpose LIKE ?)');
     const like = `%${escapeLike(search)}%`;
@@ -231,13 +249,17 @@ const publicEnquiry = (row) => ({
   assignedName: row.assigned_name || null,
   notes: row.notes || '',
   emailStatus: row.email_status,
+  thankyouStatus: row.thankyou_sent_at ? 'sent' : row.thankyou_error ? 'failed' : row.has_thankyou_job ? 'pending' : 'unavailable',
   inSheet: row.sheet_revision >= row.revision,
   sheetError: row.sheet_error,
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });
 
-const SELECT_ENQUIRY = `SELECT e.*, u.name AS assigned_name FROM enquiries e LEFT JOIN users u ON u.id = e.assigned_to`;
+const SELECT_ENQUIRY = `SELECT e.*, u.name AS assigned_name,
+  j.sent_at AS thankyou_sent_at, j.last_error AS thankyou_error, j.enquiry_id AS has_thankyou_job
+  FROM enquiries e LEFT JOIN users u ON u.id = e.assigned_to
+  LEFT JOIN enquiry_email_jobs j ON j.enquiry_id = e.id AND j.kind = 'thankyou'`;
 
 const fail = (res, status, error) => res.status(status).json({ success: false, error });
 
@@ -259,6 +281,9 @@ function localDateTime(value) {
 function createEnquiriesRouter() {
   const router = express.Router();
   router.use(requireRole('viewer'));
+  router.use(async (req, res, next) => {
+    try { await ensureEmailTables(getPool()); next(); } catch (error) { next(error); }
+  });
 
   router.get('/summary', async (req, res, next) => {
     try {
@@ -271,9 +296,10 @@ function createEnquiriesRouter() {
 
   router.get('/', async (req, res, next) => {
     const pool = getPool();
-    const filter = listFilter(req.query);
     const page = Math.max(1, Math.min(Number.parseInt(req.query.page, 10) || 1, 10000));
     try {
+      const settings = await emailSettings(pool);
+      const filter = listFilter(req.query, settings);
       const [rows] = await pool.query(
         `${SELECT_ENQUIRY} WHERE ${filter.sql} ORDER BY e.created_at DESC, e.id DESC LIMIT ? OFFSET ?`,
         [...filter.values, PAGE_SIZE, (page - 1) * PAGE_SIZE]
@@ -283,6 +309,9 @@ function createEnquiriesRouter() {
       const counts = Object.fromEntries(STATUSES.map((s) => [s, 0]));
       for (const { status, n } of countRows) counts[status] = Number(n);
       counts.all = STATUSES.filter((s) => s !== 'spam').reduce((sum, s) => sum + counts[s], 0);
+      const overdueFilter = listFilter({ status: 'overdue' }, settings);
+      const [[overdue]] = await pool.query(`SELECT COUNT(*) AS n FROM enquiries e WHERE ${overdueFilter.sql}`, overdueFilter.values);
+      counts.overdue = Number(overdue.n);
       const [staff] = await pool.query(
         'SELECT u.id, u.name FROM users u WHERE u.is_active = 1 AND u.role_id IS NOT NULL ORDER BY u.name'
       );
@@ -293,6 +322,7 @@ function createEnquiriesRouter() {
       );
       return res.json({
         success: true,
+        emailSettings: settings,
         enquiries: rows.map(publicEnquiry),
         total: Number(total),
         page,
@@ -307,8 +337,8 @@ function createEnquiriesRouter() {
   });
 
   router.get('/export.csv', async (req, res, next) => {
-    const filter = listFilter(req.query);
     try {
+      const filter = listFilter(req.query, await emailSettings());
       const [rows] = await getPool().query(
         `${SELECT_ENQUIRY} WHERE ${filter.sql} ORDER BY e.created_at DESC, e.id DESC LIMIT 20000`, filter.values
       );
@@ -402,5 +432,6 @@ module.exports = {
   isSheetConfigured,
   pingSheet,
   adminLink,
-  STATUSES
+  STATUSES,
+  listFilter
 };

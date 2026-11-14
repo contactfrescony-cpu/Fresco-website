@@ -29,6 +29,7 @@ const { createAnalyticsEmailRouter, startAnalyticsEmailScheduler, stopAnalyticsE
 const { createEnquiriesRouter, startEnquirySheetSync, stopEnquirySheetSync } = require('./server/enquiries.js');
 const { serveMedia } = require('./server/media.js');
 const { closePool } = require('./server/db.js');
+const { createEnquiryEmailRouter, startEnquiryEmailWorker, stopEnquiryEmailWorker } = require('./server/enquiry-email.js');
 
 const root = __dirname;
 const distDir = path.join(root, 'dist');
@@ -94,6 +95,7 @@ async function createApp(httpServer) {
   app.use('/api/contact', createContactRouter());
   app.use('/api/auth', createAuthRouter());
   app.use('/api/admin/users', createUsersRouter());
+  app.use('/api/admin/enquiries/email-settings', createEnquiryEmailRouter());
   app.use('/api/admin/enquiries', createEnquiriesRouter());
   app.use('/api/admin/uploads', createUploadsRouter());
   app.use('/api/admin/review', createReviewRouter());
@@ -205,13 +207,14 @@ async function main() {
     console.log(`Fresco NY listening on http://${host === '0.0.0.0' ? 'localhost' : host}:${port} [${mode}]`);
     startAnalyticsEmailScheduler();   // daily analytics email (settings on the back-office Analytics page)
     startEnquirySheetSync();          // copies enquiries to the Google Sheet, retrying any that failed
+    startEnquiryEmailWorker();
   });
 
   function shutdown(signal) {
     console.log(`${signal} received; closing HTTP server`);
     stopAnalyticsEmailScheduler();
     stopEnquirySheetSync();
-    server.close((error) => closePool().finally(() => process.exit(error ? 1 : 0)));
+    server.close((error) => stopEnquiryEmailWorker().then(closePool).finally(() => process.exit(error ? 1 : 0)));
     setTimeout(() => process.exit(1), 10000).unref();
   }
   process.on('SIGTERM', () => shutdown('SIGTERM'));

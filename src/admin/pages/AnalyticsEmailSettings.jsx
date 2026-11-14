@@ -112,8 +112,12 @@ export default function AnalyticsEmailSettings({ onClose }) {
         )}
       </div>
       <p className="muted" style={{ margin: '0 0 16px', fontSize: '12px' }}>
-        Emails yesterday’s Google Analytics figures to the addresses below, once a day at the chosen time ({tz}).
+        Emails yesterday’s and the last 7 complete days’ Google Analytics figures to the addresses below, once a day at the chosen time ({tz}).
         {readOnly && ' Only administrators can change these settings.'}
+      </p>
+      <p className="muted" style={{ margin: '0 0 16px', fontSize: '12px' }}>
+        From: {settings.sender}. Includes visitor countries, traffic sources,
+        top pages and average engagement time, in Fresco’s colours.
       </p>
 
       {!settings.smtpConfigured && (

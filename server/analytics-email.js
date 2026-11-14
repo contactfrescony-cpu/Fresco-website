@@ -120,6 +120,7 @@ function settingsForApi(row, user) {
     lastError: row.last_error || null,
     updatedAt: iso(row.updated_at),
     smtpConfigured: Boolean(process.env.SMTP_HOST),
+    sender: mailFromAddress(),
     gaProblem: ga.problem || null,
     canEdit: user?.role === 'admin'
   };
@@ -149,11 +150,11 @@ function fmtDuration(seconds) {
 }
 
 /** Fetches the day's figures from GA4. Returns { report } or { error }. */
-async function fetchDay(isoDate) {
+async function fetchDay(isoDate, startDate = isoDate) {
   const ga = getGa();
   if (ga.problem) return { error: `Google Analytics is not connected: ${ga.problem}` };
   try {
-    return { report: await runMainReport(ga.client, ga.property, { startDate: isoDate, endDate: isoDate }) };
+    return { report: await runMainReport(ga.client, ga.property, { startDate, endDate: isoDate }) };
   } catch (err) {
     return { error: `Google Analytics returned an error: ${gaErrorMessage(err)}` };
   }
@@ -182,152 +183,92 @@ function pillButton(href, label, { background, color }) {
     </td></tr></table>`;
 }
 
-function buildEmail({ isoDate, report, error, test }) {
-  const day = prettyDate(isoDate);
-  const subject = `${test ? '[Test] ' : ''}Fresco NY website analytics — ${day}`;
-  const moreUrl = escapeHtml(`${SITE_URL}/admin/analytics?range=yesterday`);
-  const siteUrl = escapeHtml(SITE_URL);
-  const logoUrl = escapeHtml(`${SITE_URL}/email/fresco-ny-logo.png`);
-  const siteHost = escapeHtml(SITE_URL.replace(/^https?:\/\//, ''));
-  const text = ['FRESCO NY — DAILY ANALYTICS', longDate(isoDate), ''];
-  let preheader = '';
-  let content = '';
-
-  if (test) {
-    content += `<tr><td class="px" style="padding:0 36px 8px">
-      <div style="border-left:3px solid ${C.gold};background:${C.cream};padding:10px 14px;font-family:${SANS};font-size:13px;color:${C.ink}">
-        This is a test email sent from the Analytics page.</div></td></tr>`;
-    text.push('(Test email sent from the Analytics page.)', '');
-  }
-
-  if (error) {
-    preheader = 'Google Analytics could not be read for this report.';
-    content += `<tr><td class="px" style="padding:8px 36px 24px">
-      <div style="background:#FBEAEA;color:#8E1D22;font-family:${SANS};font-size:14px;line-height:1.5;padding:14px 16px">${escapeHtml(error)}</div>
-      </td></tr>`;
-    text.push(error);
-  } else {
-    const k = report.kpis;
-    preheader = `${fmtInt(k.activeUsers)} users · ${fmtInt(k.pageViews)} page views · ${fmtInt(k.sessions)} sessions`;
-    const kpis = [
-      ['Users', fmtInt(k.activeUsers), 'Active users'],
-      ['New users', fmtInt(k.newUsers), 'First-time visitors'],
-      ['Sessions', fmtInt(k.sessions), 'Visits'],
-      ['Page views', fmtInt(k.pageViews), 'Including repeats'],
-      ['Engagement', fmtPct(k.engagementRate), 'Engaged sessions'],
-      ['Avg time', fmtDuration(k.avgEngagementSec), 'Per user, in focus']
-    ];
-    const card = ([label, value, note]) => `<td class="kpi" width="33%" valign="top" style="padding:5px">
-        <div style="background:${C.white};border:1px solid ${C.line};padding:16px 16px 14px">
-          <div style="${LABEL};color:${C.gold}">${label}</div>
-          <div style="font-family:${SERIF};font-size:30px;line-height:1.1;color:${C.ink};margin:8px 0 4px">${value}</div>
-          <div style="font-family:${SANS};font-size:12px;color:${C.muted}">${note}</div>
-        </div></td>`;
-    content += `<tr><td class="px" style="padding:8px 31px 10px">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>${kpis.slice(0, 3).map(card).join('')}</tr><tr>${kpis.slice(3).map(card).join('')}</tr>
-      </table></td></tr>`;
-    kpis.forEach(([label, value]) => text.push(`${label}: ${value}`));
-
-    if (k.activeUsers === 0 && k.pageViews === 0) {
-      const note = 'Google Analytics recorded no visits for this day (or has not finished processing it yet).';
-      content += `<tr><td class="px" style="padding:4px 36px 8px">
-        <div style="background:${C.cream};font-family:${SANS};font-size:13px;color:${C.muted};padding:12px 14px">${note}</div></td></tr>`;
-      text.push('', note);
+// Both reporting periods use the same compact layout for test and scheduled sends.
+function buildEmail({ isoDate, report, error, weekReport, weekError }) {
+  const loginUrl = `${SITE_URL}/admin/login`;
+  const logo = 'cid:fresco-analytics-logo@fresco';
+  const subject = `Fresco NY | Daily analytics | ${prettyDate(isoDate)}`;
+  const text = ['FRESCO NY | DAILY ANALYTICS', ''];
+  const section = (title, headers, rows) => {
+    text.push(title, headers.join(' | '), ...rows.map((row) => row.join(' | ')), '');
+    return `<h3 style="font-family:${SERIF};font-size:21px;font-weight:400;color:${C.green};margin:22px 0 8px">${title}</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed">
+        <tr>${headers.map((h, i) => `<th align="${i ? 'right' : 'left'}" style="padding:9px 5px;border-bottom:1px solid ${C.line};font-family:${SANS};font-size:11px;color:${C.muted};${i ? '' : 'width:40%'}">${h}</th>`).join('')}</tr>
+        ${rows.length ? rows.map((row) => `<tr>${row.map((v, i) => `<td align="${i ? 'right' : 'left'}" style="padding:10px 5px;border-bottom:1px solid ${C.rowLine};font-family:${SANS};font-size:12px;color:${C.ink};overflow-wrap:anywhere;word-break:break-word">${escapeHtml(v)}</td>`).join('')}</tr>`).join('')
+          : `<tr><td colspan="${headers.length}" style="padding:12px 5px;font-family:${SANS};font-size:12px;color:${C.muted}">No recorded data</td></tr>`}
+      </table>`;
+  };
+  const period = (id, label, start, end, data, problem) => {
+    const dates = start === end ? prettyDate(end) : `${prettyDate(start)} to ${prettyDate(end)}`;
+    text.push(label.toUpperCase(), dates, '');
+    let body = '';
+    if (problem || !data) {
+      const note = problem || 'Data unavailable';
+      text.push(note, '');
+      body = `<p style="font-family:${SANS};font-size:13px;color:#8E1D22">${escapeHtml(note)}</p>`;
+    } else {
+      const k = data.kpis;
+      const metrics = [
+        ['Active visitors', fmtInt(k.activeUsers)], ['New visitors', fmtInt(k.newUsers)],
+        ['Sessions', fmtInt(k.sessions)], ['Page views', fmtInt(k.pageViews)],
+        ['Engagement rate', fmtPct(k.engagementRate)], ['Avg engagement / user', fmtDuration(k.avgEngagementSec)]
+      ];
+      text.push(...metrics.map(([label, value]) => `${label}: ${value}`), '');
+      const card = ([label, value]) => `<td width="33%" valign="top" style="padding:5px"><div style="background:${C.cream};padding:14px 8px"><div style="font-family:${SANS};font-size:10px;color:${C.muted}">${label}</div><div style="font-family:${SERIF};font-size:27px;color:${C.green};margin-top:7px">${value}</div></div></td>`;
+      body += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${metrics.slice(0, 3).map(card).join('')}</tr><tr>${metrics.slice(3).map(card).join('')}</tr></table>`;
+      body += section('Visitor countries', ['Country', 'Visitors', 'Views'],
+        data.countries.slice(0, 5).map((c) => [c.country === '(not set)' ? 'Unknown' : c.country, fmtInt(c.users), fmtInt(c.pageViews)]));
+      body += section('Top pages', ['Page', 'Views', 'Visitors', 'Avg time / user'],
+        data.pages.slice(0, 5).map((p) => [p.path, fmtInt(p.pageViews), fmtInt(p.users), fmtDuration(p.avgEngagementSec)]));
+      body += section('Traffic sources', ['Source', 'Sessions', 'Visitors'],
+        data.sources.slice(0, 5).map((s) => [s.channel, fmtInt(s.sessions), fmtInt(s.users)]));
+      if (data.thresholded) {
+        body += `<p style="font-family:${SANS};font-size:11px;color:${C.muted}">Some data withheld by Google privacy thresholds.</p>`;
+        text.push('Some data withheld by Google privacy thresholds.', '');
+      }
     }
-
-    const th = (h, i) => `<th align="${i ? 'right' : 'left'}" style="${LABEL};letter-spacing:.12em;color:${C.muted};padding:10px 12px;border-bottom:1px solid ${C.line}">${h}</th>`;
-    const td = (v, i) => `<td align="${i ? 'right' : 'left'}" style="font-family:${SANS};font-size:13px;color:${C.ink};padding:10px 12px;border-bottom:1px solid ${C.rowLine};${i ? 'white-space:nowrap;font-weight:600' : 'word-break:break-all'}">${escapeHtml(v)}</td>`;
-    const section = (title, headers, rows, emptyText) => {
-      content += `<tr><td class="px" style="padding:22px 36px 0">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td style="font-family:${SERIF};font-size:22px;letter-spacing:-.02em;color:${C.green};padding-bottom:8px">${title}</td>
-          <td align="right" style="padding-bottom:8px"><a href="${moreUrl}" target="_blank" style="${LABEL};color:${C.gold};text-decoration:none">More &rarr;</a></td>
-        </tr></table>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:${C.white};border:1px solid ${C.line}">
-          <tr>${headers.map(th).join('')}</tr>
-          ${rows.length ? rows.map((r) => `<tr>${r.map(td).join('')}</tr>`).join('')
-            : `<tr><td colspan="${headers.length}" align="center" style="font-family:${SANS};font-size:13px;color:${C.muted};padding:14px">${emptyText}</td></tr>`}
-        </table></td></tr>`;
-      text.push('', `${title}:`, ...(rows.length ? rows.map((r) => `  ${r[0]} — ${r.slice(1).join(' / ')}`) : [`  ${emptyText}`]));
-    };
-    section('Top pages', ['Page', 'Views', 'Users'],
-      report.pages.slice(0, 5).map((p) => [p.path, fmtInt(p.pageViews), fmtInt(p.users)]), 'No page views recorded.');
-    section('Traffic sources', ['Channel', 'Sessions', 'Users'],
-      report.sources.slice(0, 5).map((s) => [s.channel, fmtInt(s.sessions), fmtInt(s.users)]), 'No sessions recorded.');
-    section('Visitor countries', ['Country', 'Users', 'Views'],
-      report.countries.slice(0, 5).map((c) => [c.country === '(not set)' ? 'Unknown' : c.country, fmtInt(c.users), fmtInt(c.pageViews)]),
-      'No visitors recorded.');
-  }
-
-  const source = `Source: Google Analytics 4 (${report?.timeZone || TIME_ZONE}). Google can take several hours to finish processing a day, so these figures may still rise slightly.`;
-  content += `<tr><td class="px" style="padding:18px 36px 30px;font-family:${SANS};font-size:12px;line-height:1.5;color:${C.muted}">${escapeHtml(source)}</td></tr>`;
-
-  // The "room" for going to the website: a full-width green band with the main button.
-  content += `<tr><td class="px" bgcolor="${C.green}" align="center" style="background:${C.green};padding:38px 36px 40px">
-      <div style="${LABEL};letter-spacing:.19em;color:${C.gold}">There&rsquo;s more on the website</div>
-      <div class="h1" style="font-family:${SERIF};font-size:30px;line-height:1.15;letter-spacing:-.02em;color:#FFFFFF;margin:12px 0 10px">See the full picture</div>
-      <div style="font-family:${SANS};font-size:14px;line-height:1.6;color:#D3DED7;margin:0 auto 24px;max-width:420px">
-        Day-by-day trends, every page and country, visitors active right now and the server visit log are on the Analytics page.</div>
-      ${pillButton(moreUrl, 'View more &rarr;', { background: C.white, color: C.green })}
-      <div style="font-family:${SANS};font-size:12px;color:#A9BDB1;margin-top:16px">
-        or visit <a href="${siteUrl}" target="_blank" style="color:${C.gold};text-decoration:none">${siteHost}</a></div>
-    </td></tr>`;
-  text.push('', source, '', `VIEW MORE: ${SITE_URL}/admin/analytics?range=yesterday`, `Website: ${SITE_URL}`);
-
-  const footer = `<tr><td class="px" bgcolor="${C.footer}" style="background:${C.footer};padding:26px 36px;font-family:${SANS};font-size:12px;line-height:1.6;color:${C.footerText}">
-      <div style="font-family:${SERIF};font-size:16px;letter-spacing:.12em;color:#FFFFFF">FRESCO <span style="color:${C.gold}">NY</span></div>
-      <div style="margin:2px 0 12px">From Vision to Garment &middot; <a href="${siteUrl}" target="_blank" style="color:${C.footerText};text-decoration:underline">${siteHost}</a></div>
-      You receive this because an administrator added your address to the daily report.
-      To change or stop it, open the <a href="${moreUrl}" target="_blank" style="color:${C.footerText};text-decoration:underline">Analytics page</a>.
-    </td></tr>`;
-  text.push('', 'You receive this because an administrator added your address to the daily report. Change or stop it on the Analytics page.');
-
-  const html = `<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
-<title>${escapeHtml(subject)}</title>
-<style>
-  @media (max-width:620px){
-    .container{width:100%!important}
-    .px{padding-left:20px!important;padding-right:20px!important}
-    .kpi{display:block!important;width:100%!important;box-sizing:border-box}
-    .h1{font-size:26px!important}
-  }
-</style></head>
-<body style="margin:0;padding:0;background:${C.cream}">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(preheader)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.cream}" style="background:${C.cream}">
-<tr><td align="center" style="padding:28px 12px">
-  <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:${C.white};border:1px solid ${C.line}">
-    <tr><td class="px" style="padding:24px 36px 18px;border-bottom:1px solid ${C.line}">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td><a href="${siteUrl}" target="_blank"><img src="${logoUrl}" width="200" height="41" alt="Fresco NY" style="display:block;border:0;width:200px;height:auto"></a></td>
-        <td align="right" style="${LABEL};color:${C.gold}">Web intelligence</td>
-      </tr></table></td></tr>
-    <tr><td class="px" style="padding:30px 36px 14px">
-      <div style="${LABEL};letter-spacing:.19em;color:${C.green2}">Daily analytics report</div>
-      <div class="h1" style="font-family:${SERIF};font-size:36px;line-height:1.1;letter-spacing:-.035em;color:${C.green};margin:10px 0 8px">${escapeHtml(longDate(isoDate))}</div>
-      <div style="font-family:${SANS};font-size:14px;color:${C.muted}">Yesterday&rsquo;s visitors to ${siteHost}, from Google Analytics 4.</div>
-    </td></tr>
-    ${content}
-    ${footer}
-  </table>
-</td></tr></table>
-</body></html>`;
-
-  return { subject, html, text: text.join('\n') };
+    return `<tr><td class="px" id="${id}" style="padding:26px 30px;border-top:1px solid ${C.line}">
+      <h2 style="font-family:${SERIF};font-size:28px;font-weight:400;color:${C.green};margin:0 0 6px">${label}</h2>
+      <div style="font-family:${SANS};font-size:12px;color:${C.muted};margin-bottom:16px">${escapeHtml(dates)}</div>${body}</td></tr>`;
+  };
+  const yesterday = period('yesterday', 'Yesterday', isoDate, isoDate, report, error);
+  // Seven complete days ending yesterday; excludes the partial sending day.
+  const week = period('last-7-days', 'Last 7 Days', addDays(isoDate, -6), isoDate, weekReport, weekError);
+  const source = 'Data source: Google Analytics 4 (GA4)';
+  const note = `${report?.timeZone || weekReport?.timeZone || TIME_ZONE} | Recent data provisional. Avg time = active engagement/user. Locations approximate.`;
+  text.splice(1, 0, source);
+  text.push(note, '', `VIEW MORE: ${loginUrl}`);
+  const logoImage = `<img src="${logo}" width="130" height="27" alt="Fresco NY" style="display:block;width:130px;max-width:100%;height:auto;border:0">`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fresco NY | Daily analytics</title>
+    <style>@media(max-width:620px){.container{width:100%!important}.px{padding-left:16px!important;padding-right:16px!important}}</style></head>
+    <body style="margin:0;background:${C.cream}">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.cream}"><tr><td align="center" style="padding:20px 8px">
+    <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${C.white};border:1px solid ${C.line}">
+      <tr><td class="px" style="padding:24px 30px"><a href="${escapeHtml(SITE_URL)}">${logoImage}</a></td></tr>
+      <tr><td class="px" style="padding:0 30px 20px"><h1 style="font-family:${SERIF};font-weight:400;font-size:32px;color:${C.green};margin:0">Daily Analytics</h1>
+        <p style="font-family:${SANS};font-size:12px;color:${C.muted};margin:8px 0 0">${source}</p></td></tr>
+      ${yesterday}${week}
+      <tr><td class="px" style="padding:12px 30px 22px;font-family:${SANS};font-size:10px;line-height:1.5;color:${C.muted}">${escapeHtml(note)}</td></tr>
+      <tr><td align="center" bgcolor="${C.green}" style="padding:22px">${pillButton(escapeHtml(loginUrl), 'View more &rarr;', { background: C.white, color: C.green })}</td></tr>
+      <tr><td class="px" bgcolor="${C.cream}" style="padding:24px 30px"><a href="${escapeHtml(SITE_URL)}">${logoImage}</a></td></tr>
+    </table></td></tr></table></body></html>`;
+  return { subject, html, text: text.join('\n'), attachments: [{
+    filename: 'fresco-ny-logo-transparent.png', path: require('path').join(__dirname, '..', 'public', 'email', 'fresco-ny-logo-transparent.png'),
+    cid: 'fresco-analytics-logo@fresco', contentDisposition: 'inline'
+  }] };
 }
 
-/** Builds and sends the report for one day. Throws if the email could not be sent. */
-async function sendReport({ recipients, isoDate, test = false, transport = createMailTransport() }) {
+/** Test and scheduled sends fetch the same periods and use the identical template. */
+async function sendReport({ recipients, isoDate, transport = createMailTransport(), fetchReport = fetchDay }) {
   if (!transport) throw new Error('Email is not configured on the server (SMTP_HOST is empty in .env).');
   if (!recipients.length) throw new Error('No recipients are set.');
-  const { report, error } = await fetchDay(isoDate);
-  const email = buildEmail({ isoDate, report, error, test });
+  const [daily, weekly] = await Promise.all([
+    fetchReport(isoDate), fetchReport(isoDate, addDays(isoDate, -6))
+  ]);
+  const email = buildEmail({ isoDate, report: daily.report, error: daily.error, weekReport: weekly.report, weekError: weekly.error });
   await transport.sendMail({ from: mailFromAddress(), to: recipients.join(', '), ...email });
-  return { gaError: error || null };
+  const problems = [daily.error && `Yesterday: ${daily.error}`, weekly.error && `Last 7 Days: ${weekly.error}`].filter(Boolean);
+  return { gaError: problems.join('; ') || null };
 }
 
 /* ------------------------------------------------------------------ */

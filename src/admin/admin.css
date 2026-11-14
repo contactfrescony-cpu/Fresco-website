@@ -211,6 +211,15 @@ body.is-admin{background:var(--cream)}
 .enquiry-notes textarea{resize:vertical;min-height:90px}
 .enquiry-actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px}
 .enquiry-actions .button:disabled{opacity:.5;cursor:default}
+.enquiry-email-settings{margin-bottom:20px}
+.enquiry-email-settings summary{cursor:pointer;font-weight:600}
+.enquiry-email-settings p{margin:12px 0}
+.enquiry-deadline-label{display:flex;flex-direction:column;gap:8px;max-width:300px}
+.enquiry-deadline-label input{padding:10px;border:1px solid var(--line);font:inherit;background:#fff}
+.enquiry-alert-toggle{display:flex;align-items:center;gap:10px;margin:16px 0}
+.enquiry-table tr.is-overdue td{background:#fff1f2}
+.enquiry-overdue-text{color:#b91c1c;font-weight:600;font-size:12px;margin-top:6px}
+.enquiry-overdue-alert{background:#fff1f2;border-left:4px solid #b91c1c;color:#991b1b;padding:14px 18px;font-weight:600}
 @media(max-width:560px){
   .enquiry-facts,.enquiry-controls{grid-template-columns:1fr}
   .enquiry-tools,.enquiry-tools input{width:100%;min-width:0}

@@ -12,13 +12,16 @@ function createMailTransport(env = process.env) {
     host: env.SMTP_HOST,
     port: Number.parseInt(env.SMTP_PORT || '587', 10),
     secure: env.SMTP_SECURE === 'true',
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
     auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined
   });
 }
 
 /** The address emails are sent from (must be one the SMTP account may send as). */
 function mailFromAddress(env = process.env) {
-  return env.CONTACT_FROM || env.SMTP_USER || env.CONTACT_TO || 'info@frescony.uk';
+  return env.CONTACT_FROM || env.SMTP_USER || env.CONTACT_TO || 'connectfrescony@gmail.com';
 }
 
 // Plain addresses only: no names, no lists, nothing that could inject extra headers.

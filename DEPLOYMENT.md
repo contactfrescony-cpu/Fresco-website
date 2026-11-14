@@ -35,11 +35,11 @@ The Contact page posts enquiries to `POST /api/contact`. Each enquiry is:
 2. **emailed** as "New enquiry #id" (details below), with a link to that enquiry on the Enquiries page;
 3. **copied to a Google Sheet** (below).
 
-When the enquiry is saved, the visitor gets an answer straight away and the email and Sheet copy follow in the background, so a slow mail server or Google never loses an enquiry. If the database is down, the email is sent directly as before.
+When the enquiry is saved, the visitor sees a sending indicator while the server waits up to 20 seconds for SMTP to accept the team email. It shows "Email sent" only after that confirmation; otherwise it confirms that the enquiry was received and its notification is queued. The durable queue continues retrying after the request ends, and the Sheet copy follows in the background. If the database is down, the email is sent directly as before.
 
 ### Email
 
-The server emails each enquiry to `CONTACT_TO` (default `info@frescony.uk`) with the visitor's address as Reply-To. Set the SMTP details of the sending mailbox in `.env` (see `.env.example`) or the host's environment:
+The server emails each enquiry to `CONTACT_TO` (default `connectfrescony@gmail.com`) with the visitor's address as Reply-To. Set the SMTP details of the sending mailbox in `.env` (see `.env.example`) or the host's environment:
 
 ```sh
 SMTP_HOST=smtp.example.com
@@ -47,10 +47,22 @@ SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=website@frescony.uk
 SMTP_PASS=<app password>
-CONTACT_TO=info@frescony.uk
+CONTACT_TO=connectfrescony@gmail.com
 ```
 
 Restart the server after changing these. Without `SMTP_HOST` the enquiry is still saved (the Enquiries page shows "Email not set up"); only when neither SMTP nor the database is configured does the form fall back to opening the visitor's email app with the enquiry pre-filled. The endpoint validates fields, has a hidden spam honeypot and allows 5 enquiries per IP per 15 minutes.
+
+### Enquiry acknowledgements and overdue alerts
+
+With MySQL and SMTP configured, each submission saves two outgoing emails in the same database transaction as the enquiry: a team notification to `CONTACT_TO` and a thank-you email to the customer. Team notifications use the customer's address as Reply-To; customer acknowledgements use the team inbox as Reply-To.
+
+In **Admin → Enquiries → Email notifications and response deadline**, administrators can set the deadline from 0.25 to 720 elapsed hours and enable or disable overdue alerts. The default is 4 hours. Settings apply to existing waiting enquiries too. The admin table and enquiry detail turn red for overdue enquiries. After replying in your email app, mark the enquiry **Contacted**; Gmail replies are not detected automatically. Closed and Spam enquiries also do not receive overdue alerts.
+
+The server checks the durable email queue every minute and immediately after submissions. It sends one red overdue email per enquiry, with its actual waiting time and a link to the enquiry. Successful emails are recorded so routine checks and restarts do not resend them. Failed deliveries retry every 15 minutes. The server must stay running; after downtime it catches up from the database. As with SMTP queues generally, a crash after SMTP accepts an email but before its success is recorded can result in a duplicate on retry.
+
+The `enquiry_email_settings` and `enquiry_email_jobs` tables are created automatically on first use; the database account needs permission to create them, or apply `db/schema.sql` using the setup account. Existing enquiries receive no retrospective thank-you emails. When SMTP is configured later, emails queued for new submissions will be delivered.
+
+Without MySQL, SMTP-only fallback sends the notification and attempts a thank-you email, but durable retries, response tracking and overdue alerts require the database. `npm run test:enquiries` checks email templates and, when DB settings are available, exercises the queue against isolated connection-local temporary tables with mocked SMTP. It sends no real emails and changes no customer records.
 
 ### Google Sheet copy
 
@@ -216,6 +228,8 @@ The page also shows a separate server visit log (IP, approximate location and de
 ### Daily analytics email
 
 Administrators set the recipients (up to 10) and the send time on the **Analytics** page, under *Daily Email Report*. Viewers can see these settings but not change them. Use **Send test email now** to check delivery. The email contains the previous day's GA4 figures and is sent through the SMTP settings above (`SMTP_*`), so those must be filled in.
+
+The Fresco-themed report shows yesterday and the last seven complete days ending yesterday as two visible sections. Each section contains visitor metrics, countries, top pages with average engagement time, and traffic sources. The data source is labelled Google Analytics 4 (GA4). Small transparent header and footer logos are embedded as inline attachments. View more opens `/admin/login`. Test and scheduled emails use identical content and styling. The settings panel shows the sender address. Run `npm run test:analytics` to check the report without sending email.
 
 The website's own Node server sends it: a scheduler inside `server.js` checks every minute. Settings and status live in MySQL (`analytics_email_settings`, created automatically). Times are in `REPORT_TIME_ZONE` (India time by default).
 
