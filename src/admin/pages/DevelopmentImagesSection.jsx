@@ -15,7 +15,7 @@ const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 const titled = (sections) => sections.map((section, i) => ({ ...section, name: `${ORDINALS[i] || `${i + 1}th`} image` }));
 
 const MAX_EDGE = 2000;           // longest side of the uploaded photo, in pixels
-const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
+export const WEBSITE_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
 
 const ERRORS = {
   drive_not_configured: 'Google Drive is not connected yet, so photos cannot be uploaded.',
@@ -46,14 +46,14 @@ async function api(url, options = {}) {
 const sendJson = (url, method, body) => api(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) });
 
 /** Shrinks a photo to at most MAX_EDGE pixels and re-encodes it as WebP (JPEG where WebP is unavailable). */
-async function prepareImage(file) {
+export async function prepareWebsiteImage(file, maxEdge = MAX_EDGE) {
   let bitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
     throw new Error('This browser cannot open that photo. Please use a JPG, PNG or WebP file (iPhone HEIC photos open in Safari).');
   }
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
@@ -98,7 +98,7 @@ export default function DevelopmentImagesSection() {
   };
 
   const upload = (section, file, replace) => run(`${section.id}`, async () => {
-    const blob = await prepareImage(file);
+    const blob = await prepareWebsiteImage(file);
     await api(`/api/admin/development-images/sections/${section.id}/images${replace ? `?replace=${replace.id}` : ''}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
@@ -229,7 +229,7 @@ function DropZone({ disabled, uploading, onFile, sectionName }) {
       <span>{uploading ? 'Uploading…' : 'Add photo'}</span>
       <span className="muted">{uploading ? 'Sending to Google Drive' : 'Click or drop a photo here'}</span>
       <input
-        type="file" accept={ACCEPT} disabled={disabled} className="sr-only"
+        type="file" accept={WEBSITE_IMAGE_ACCEPT} disabled={disabled} className="sr-only"
         aria-label={`Add a photo to ${sectionName}`}
         onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onFile(file); }}
       />
@@ -243,7 +243,7 @@ function FilePick({ label, disabled, onFile, aria }) {
     <>
       <button type="button" className="admin-link-button" disabled={disabled} onClick={() => input.current?.click()} aria-label={aria}>{label}</button>
       <input
-        ref={input} type="file" accept={ACCEPT} hidden
+        ref={input} type="file" accept={WEBSITE_IMAGE_ACCEPT} hidden
         onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onFile(file); }}
       />
     </>

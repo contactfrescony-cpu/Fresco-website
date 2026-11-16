@@ -32,7 +32,7 @@
  */
 
 var VERSION = 1;
-var MAX_PER_TAB = 20;
+var MAX_PER_TAB = 3;
 var TABS = [
   'Fabric innovation', 'Dyeing & washing', 'Sustainable chemistry', 'Green energy',
   'Automation', 'Print-on-demand', 'AI & digital supply chain', 'Market developments'
@@ -143,7 +143,7 @@ function collect_(props) {
     }
     items.sort(function (a, b) { return a.key < b.key ? 1 : (a.key > b.key ? -1 : 0); });
     items.forEach(function (item, i) {
-      if (i >= MAX_PER_TAB) { item.file.setTrashed(true); return; }      // beyond 20: oldest go to the trash
+      if (i >= MAX_PER_TAB) { item.file.setTrashed(true); return; }      // beyond 3: oldest go to the trash
       if (!item.blog) return;
       result.push({
         id: String(item.blog.id || item.file.getId()),

@@ -11,7 +11,7 @@
 // (npm run media:migrate moved the original four pictures into Drive.)
 //
 // Approver API (/api/admin/development-images, approvers and administrators):
-//   GET  /                         -> { drive: { configured }, limit, sections: [{ id, slug, name, images }] }
+//   GET  /                         -> { drive, limit, sections }
 //   POST /sections/:id/images      body: photo bytes (application/octet-stream), header X-File-Name
 //                                  ?replace=<imageId> puts the new photo in that photo's place
 //                                  -> 201 { image }   (409 section_full when the section already has 3)

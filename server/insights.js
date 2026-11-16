@@ -1,6 +1,6 @@
 'use strict';
 
-// Public Insights feed: blogs the team keeps in Google Drive (one folder per tab, max 20 each), read through
+// Public Insights feed: blogs the team keeps in Google Drive (one folder per tab, max 3 each), read through
 // the Apps Script bridge google/insights-feed.gs. The result is cached in memory so Drive is read at most once a minute.
 //
 //   INSIGHTS_FEED_URL     the Apps Script web-app URL (ends in /exec)
@@ -10,7 +10,7 @@ const express = require('express');
 
 const TIMEOUT_MS = 30 * 1000;
 const FRESH_MS = 60 * 1000;            // a page load re-reads Drive when the copy is over a minute old (at most one Drive read a minute, however busy the site)
-const MAX_PER_TAB = 20;
+const MAX_PER_TAB = 3;
 
 let cache = null;                      // { at: ms, insights: [...] }
 let inflight = null;
@@ -54,7 +54,7 @@ const safeUrl = (value) => {
   } catch { return ''; }
 };
 
-/** Cleans what the script returned: valid links only, newest first, at most 20 per tab. */
+/** Cleans what the script returned: valid links only, newest first, at most 3 per tab. */
 function normalise(list) {
   const perTab = new Map();
   const items = (Array.isArray(list) ? list : [])

@@ -61,7 +61,7 @@ export default function Insights() {
     return () => controller.abort();
   }, []);
 
-  // The server sends every tab's latest blogs (max 20 each), newest first; "All" shows them together.
+  // The server sends every tab's latest blogs (max 3 each), newest first; "All" shows them together.
   const items = useMemo(
     () => insights.filter((item) => topic === 'All' || item.tab === topic),
     [insights, topic]

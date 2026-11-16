@@ -47,6 +47,8 @@
 .review-badges{display:flex;gap:6px}
 .review-badge{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);border:1px solid #cfe0d6;padding:2px 6px}
 .review-badge.is-off{color:#8e1d22;border-color:#ecd3d3}
+.review-folder-upload{white-space:nowrap}
+.review-folder-upload:disabled{opacity:.45;cursor:not-allowed}
 .review-move{gap:4px}
 .review-move button,.review-image-move button{width:32px;height:32px;border:1px solid var(--line);background:#fff;font-size:16px;cursor:pointer}
 .review-move button:disabled,.review-image-move button:disabled{opacity:.3}

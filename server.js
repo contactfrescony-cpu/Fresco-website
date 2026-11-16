@@ -24,6 +24,7 @@ const { createUsersRouter } = require('./server/users.js');
 const { createUploadsRouter } = require('./server/uploads.js');
 const { createReviewRouter, createCatalogRouter, publishedImagesFor } = require('./server/catalog.js');
 const { createDevelopmentImagesRouter } = require('./server/development-images.js');
+const { createPublicHeroBannersRouter, createAdminHeroBannersRouter } = require('./server/hero-banners.js');
 const { createPublicAnalyticsRouter, createAdminAnalyticsRouter } = require('./server/analytics.js');
 const { createAnalyticsEmailRouter, startAnalyticsEmailScheduler, stopAnalyticsEmailScheduler } = require('./server/analytics-email.js');
 const { createEnquiriesRouter, startEnquirySheetSync, stopEnquirySheetSync } = require('./server/enquiries.js');
@@ -100,10 +101,12 @@ async function createApp(httpServer) {
   app.use('/api/admin/uploads', createUploadsRouter());
   app.use('/api/admin/review', createReviewRouter());
   app.use('/api/admin/development-images', createDevelopmentImagesRouter());
+  app.use('/api/admin/hero-banners', createAdminHeroBannersRouter());
   app.use('/api/admin/analytics/email', createAnalyticsEmailRouter());
   app.use('/api/admin/analytics', createAdminAnalyticsRouter());
   app.use('/api/analytics', createPublicAnalyticsRouter());
   app.use('/api/products', createCatalogRouter());
+  app.use('/api/home-hero', createPublicHeroBannersRouter());
   app.use('/api/insights', createInsightsRouter());
 
   app.get('/api/gallery/:category', async (req, res, next) => {

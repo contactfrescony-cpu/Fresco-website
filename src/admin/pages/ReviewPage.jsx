@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../review.css';
 import { clearGalleryCache } from '../../lib/gallery.js';
-import DevelopmentImagesSection from './DevelopmentImagesSection.jsx';
+import DevelopmentImagesSection, { prepareWebsiteImage, WEBSITE_IMAGE_ACCEPT } from './DevelopmentImagesSection.jsx';
+import HeroBannersSection from './HeroBannersSection.jsx';
 
 /*
  * Approver's "Website Images" page — split screen.
@@ -27,7 +28,11 @@ const ERRORS = {
   invalid_description: 'Products page text is required (up to 255 characters).',
   invalid_homeTagline: 'Homepage line is required (up to 120 characters).',
   unauthenticated: 'Your session has ended. Please sign in again.',
-  forbidden: 'Your role cannot manage website images.'
+  forbidden: 'Your role cannot manage website images.',
+  category_full: 'This folder already has 20 photos. Remove one before adding another.',
+  unsupported_type: 'Only JPG, PNG and WebP photos can be used.',
+  empty_file: 'The photo was empty. Please choose it again.',
+  too_large: 'The photo is too large. Please choose a smaller one.'
 };
 const errorText = (code) => ERRORS[code] || (code?.startsWith('drive_') ? 'Google Drive did not answer properly. Try again shortly.' : 'Something went wrong. Please try again.');
 
@@ -208,6 +213,29 @@ export default function ReviewPage() {
   const removeImage = (folder, image) => {
     if (!window.confirm(`Remove this photo from ${folder.name}? It disappears from the website straight away.`)) return;
     run(() => api(`/api/admin/review/images/${image.id}/remove`, 'POST', {}), `Photo removed from ${folder.name}.`);
+  };
+  const uploadImage = (folder, file) => {
+    if (folder.images.length >= limits.perCategory) {
+      setError(`This folder already has ${limits.perCategory} photos. Remove one before adding another.`);
+      return;
+    }
+    run(async () => {
+      const blob = await prepareWebsiteImage(file);
+      const response = await fetch(`/api/admin/review/categories/${folder.id}/images`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+        body: blob
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const uploadError = new Error(errorText(result.error || (response.status === 413 ? 'too_large' : undefined)));
+        uploadError.code = result.error;
+        throw uploadError;
+      }
+      clearGalleryCache();
+      return result;
+    }, `Photo added to ${folder.name}. It is live on the website now.`);
   };
   const saveFolderOrder = (next) => {
     setData((current) => ({ ...current, categories: next }));
@@ -409,6 +437,7 @@ export default function ReviewPage() {
                       {folder.showOnHome && <span className="review-badge">Homepage</span>}
                       {folder.showOnProducts ? <span className="review-badge">Products</span> : <span className="review-badge is-off">Hidden</span>}
                     </span>
+                    <FolderUpload folder={folder} disabled={busy || full || !data.drive.configured} onFile={uploadImage} />
                     <span className="review-move for-touch">
                       <button type="button" aria-label={`Move ${folder.name} up`} disabled={index === 0 || busy} onClick={() => saveFolderOrder(moveTo(categories, folder.id, visible[index - 1].id))}>↑</button>
                       <button type="button" aria-label={`Move ${folder.name} down`} disabled={index === visible.length - 1 || busy} onClick={() => saveFolderOrder(moveTo(categories, folder.id, visible[index + 1].id))}>↓</button>
@@ -490,6 +519,7 @@ export default function ReviewPage() {
         </section>
       </div>
 
+      <HeroBannersSection />
       <DevelopmentImagesSection />
 
       {pickerPhoto && (
@@ -557,6 +587,34 @@ function FolderEditor({ folder, busy, onSave, onCancel }) {
         <button type="button" className="admin-link-button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  );
+}
+
+function FolderUpload({ folder, disabled, onFile }) {
+  const input = useRef(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="admin-link-button review-folder-upload"
+        disabled={disabled}
+        title={folder.images.length >= 20 ? 'Remove a photo before adding another' : 'Upload a finished photo directly to this folder'}
+        onClick={() => input.current?.click()}
+      >Add photo</button>
+      <input
+        ref={input}
+        type="file"
+        accept={WEBSITE_IMAGE_ACCEPT}
+        hidden
+        disabled={disabled}
+        aria-label={`Add a photo to ${folder.name}`}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) onFile(folder, file);
+        }}
+      />
+    </>
   );
 }
 

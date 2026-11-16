@@ -57,6 +57,10 @@ function doPost(e) {
       case 'trashWebsite': return trashWebsite_(props, body);
       case 'moveWebsite': return moveWebsite_(props, body);
       case 'locateFiles': return locateFiles_(props, folderId, body);
+      case 'listHeroBanners': return listHeroBanners_(props);
+      case 'uploadHeroBanner': return uploadHeroBanner_(props, body);
+      case 'saveHeroRotation': return saveHeroRotation_(props, body);
+      case 'trashHeroBanner': return trashHeroBanner_(props, body);
       default: return reply_({ ok: false, error: 'unknown_action' });
     }
   } catch (err) {
@@ -79,7 +83,7 @@ function ping_(props, folderId) {
     folderName: DriveApp.getFolderById(folderId).getName(),
     processedFolderName: processedId ? DriveApp.getFolderById(processedId).getName() : null,
     websiteFolderName: websiteId ? DriveApp.getFolderById(websiteId).getName() : null,
-    version: 5
+    version: 6
   });
 }
 
@@ -262,6 +266,63 @@ function trashWebsite_(props, body) {
     throw err;
   }
   file.setTrashed(true);
+  return reply_({ ok: true });
+}
+
+/* ---------- homepage front banners (Drive-only schedule) ---------- */
+
+function heroFolder_(props) {
+  var id = props.getProperty('HERO_BANNER_FOLDER_ID');
+  if (id) {
+    try { var saved = websiteFolder_(props, id); if (!saved.isTrashed()) return saved; } catch (ignored) { /* recreate */ }
+  }
+  var folders = websiteRoot_(props).getFoldersByName('Homepage front banners');
+  var folder = folders.hasNext() ? folders.next() : websiteRoot_(props).createFolder('Homepage front banners');
+  props.setProperty('HERO_BANNER_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+function heroFile_(props, id) {
+  var file = DriveApp.getFileById(String(id || ''));
+  if (file.isTrashed() || !hasParent_(file, heroFolder_(props).getId())) fail_('not_found');
+  return file;
+}
+
+function listHeroBanners_(props) {
+  var files = [], it = heroFolder_(props).getFiles();
+  while (it.hasNext()) {
+    var file = it.next();
+    if (String(file.getMimeType()).indexOf('image/') !== 0) continue;
+    files.push({
+      id: file.getId(), name: file.getName(), mimeType: file.getMimeType(), size: file.getSize(),
+      created: file.getDateCreated().toISOString()
+    });
+  }
+  files.sort(function (a, b) { return String(a.created).localeCompare(String(b.created)); });
+  var schedule = null;
+  try { schedule = JSON.parse(props.getProperty('HERO_ROTATION_SCHEDULE') || 'null'); } catch (ignored) { schedule = null; }
+  return reply_({ ok: true, files: files, schedule: schedule });
+}
+
+function uploadHeroBanner_(props, body) {
+  if (WEB_TYPES.indexOf(body.mimeType) === -1) return reply_({ ok: false, error: 'unsupported_type' });
+  var name = String(body.name || 'homepage-banner').slice(0, 200);
+  var file = heroFolder_(props).createFile(Utilities.newBlob(Utilities.base64Decode(body.data), body.mimeType, name));
+  return reply_({ ok: true, id: file.getId(), name: file.getName(), size: file.getSize() });
+}
+
+function saveHeroRotation_(props, body) {
+  var every = Number(body.every), unit = String(body.unit || ''), anchor = new Date(body.anchor);
+  if (every < 1 || every > 999 || ['minutes', 'hours', 'days', 'weeks'].indexOf(unit) === -1 || isNaN(anchor.getTime())) {
+    return reply_({ ok: false, error: 'invalid_schedule' });
+  }
+  var schedule = { every: Math.floor(every), unit: unit, anchor: anchor.toISOString(), time: body.time || '', weekday: body.weekday };
+  props.setProperty('HERO_ROTATION_SCHEDULE', JSON.stringify(schedule));
+  return reply_({ ok: true, schedule: schedule });
+}
+
+function trashHeroBanner_(props, body) {
+  heroFile_(props, body.id).setTrashed(true);
   return reply_({ ok: true });
 }
 

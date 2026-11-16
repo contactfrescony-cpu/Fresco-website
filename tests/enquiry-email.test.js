@@ -18,6 +18,9 @@ test('email templates escape customer content and route replies correctly', () =
   assert.equal(thanks.to, enquiry.email);
   assert.equal(thanks.replyTo, team.to);
   assert.ok(!thanks.html.includes('/admin/'));
+  assert.ok(!thanks.subject.includes(`#${enquiry.id}`));
+  assert.ok(!thanks.text.includes(`#${enquiry.id}`));
+  assert.ok(!thanks.html.includes(`#${enquiry.id}`));
   const overdue = buildEnquiryEmail('overdue', enquiry, 4.5);
   assert.match(overdue.text, /waiting for 4.5 hours/);
   assert.match(overdue.html, /#b91c1c/);

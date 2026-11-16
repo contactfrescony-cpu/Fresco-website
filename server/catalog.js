@@ -19,6 +19,7 @@
 //   GET    /pending/:id/image         -> the pending image itself (never public)
 //   POST   /pending/:id/publish       { categoryId } -> { removed: [...] } (photos rotated out)
 //   POST   /pending/:id/reject
+//   POST   /categories/:id/images     body: finished photo bytes -> publish directly at position 1
 //   POST   /images/:id/remove
 //   POST   /images/:id/move           { categoryId } -> goes first in that folder; { removed: [...] }
 //   PUT    /categories/order          { ids: [...] }   every category, in the new order
@@ -34,15 +35,18 @@ const express = require('express');
 const { getPool } = require('./db.js');
 const { requireRole, jsonOnly } = require('./auth.js');
 const {
-  isDriveConfigured, listProcessed, downloadProcessed, ensureWebsiteFolder, copyToWebsite, trashWebsiteFile, moveWebsiteFile
+  isDriveConfigured, listProcessed, downloadProcessed, ensureWebsiteFolder, copyToWebsite, uploadWebsiteFile,
+  trashWebsiteFile, moveWebsiteFile
 } = require('./drive.js');
-const { sniffImage } = require('./uploads.js');
+const { sniffImage, driveNameFor } = require('./uploads.js');
 const { PENDING_DIR, writeCache, removeCached } = require('./media.js');
 
 const MAX_PER_CATEGORY = 20;
 const MAX_ON_HOME = 4;
 const SYNC_BATCH = 20;           // finished images copied per sync
 const SYNC_MIN_INTERVAL = 20 * 1000;
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const WEB_TYPES = ['image/webp', 'image/jpeg', 'image/png'];
 
 const publicUrl = (row) => (row.source === 'legacy'
   ? `/${row.file_name.split('/').map(encodeURIComponent).join('/')}`
@@ -109,6 +113,14 @@ async function categoryFolder(categoryId) {
 async function assertProductCategory(categoryId) {
   const [[row]] = await getPool().query("SELECT id FROM product_categories WHERE id = ? AND kind = 'product'", [categoryId]);
   if (!row) throw new HttpError(400, 'invalid_category');
+}
+
+function readFileName(req) {
+  try {
+    return decodeURIComponent(req.get('x-file-name') || '').trim().replace(/[\u0000-\u001f\\/]/g, '').slice(0, 200);
+  } catch {
+    return '';
+  }
 }
 
 /* ---------- Drive sync ---------- */
@@ -356,6 +368,58 @@ function createReviewRouter() {
     await removeFileQuietly(path.join(PENDING_DIR, path.basename(row.file_name)));
     res.json({ ok: true });
   }));
+
+  // Approvers may add a finished photo directly to a product folder without using the AI pipeline.
+  router.post('/categories/:id/images',
+    (req, res, next) => (/^application\/octet-stream\b/i.test(req.get('content-type') || '')
+      ? next() : res.status(415).json({ error: 'binary_required' })),
+    express.raw({ type: 'application/octet-stream', limit: MAX_UPLOAD_BYTES }),
+    handle(async (req, res) => {
+      if (!isDriveConfigured()) throw new HttpError(503, 'drive_not_configured');
+      const categoryId = idParam(req.params.id);
+      if (!categoryId) throw new HttpError(404, 'not_found');
+      await assertProductCategory(categoryId);
+
+      const buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      if (!buffer.length) throw new HttpError(400, 'empty_file');
+      const type = sniffImage(buffer);
+      if (!type || !WEB_TYPES.includes(type.mime)) throw new HttpError(400, 'unsupported_type');
+
+      const [[{ count }]] = await getPool().query(
+        "SELECT COUNT(*) AS count FROM product_images WHERE status = 'published' AND category_id = ?", [categoryId]
+      );
+      if (Number(count) >= MAX_PER_CATEGORY) throw new HttpError(409, 'category_full');
+
+      const folderId = await categoryFolder(categoryId);
+      const driveName = driveNameFor(readFileName(req) || 'photo', type.ext);
+      const driveId = await uploadWebsiteFile({ folderId, name: driveName, mimeType: type.mime, buffer });
+      const fileName = `${driveId}.${type.ext}`;
+
+      let imageId;
+      try {
+        imageId = await withTransaction(async (conn) => {
+          await conn.query('SELECT id FROM product_categories WHERE id = ? FOR UPDATE', [categoryId]);
+          const [current] = await conn.query(
+            "SELECT id FROM product_images WHERE status = 'published' AND category_id = ? ORDER BY position, id FOR UPDATE",
+            [categoryId]
+          );
+          if (current.length >= MAX_PER_CATEGORY) throw new HttpError(409, 'category_full');
+          await setPositions(conn, 'product_images', current.map((row) => row.id), 2);
+          const [insert] = await conn.query(
+            `INSERT INTO product_images (status, source, category_id, position, file_name, website_file_id, drive_name, reviewed_by, reviewed_at)
+             VALUES ('published', 'drive', ?, 1, ?, ?, ?, ?, UTC_TIMESTAMP())`,
+            [categoryId, fileName, driveId, driveName, req.user.id]
+          );
+          return insert.insertId;
+        });
+      } catch (error) {
+        await trashWebsiteFile(driveId).catch(() => {});
+        throw error;
+      }
+
+      await writeCache(fileName, buffer).catch(() => {});
+      res.status(201).json({ ok: true, image: { id: imageId, url: publicUrl({ source: 'drive', file_name: fileName }) } });
+    }));
 
   // Moving a published photo to another folder: it goes first there (a full folder drops its last photo),
   // and its Drive file moves to that folder's Drive folder.
