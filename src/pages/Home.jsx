@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import usePageMeta from '../hooks/usePageMeta.js';
 import GalleryImage from '../components/GalleryImage.jsx';
 import BriefFlow from '../components/BriefFlow.jsx';
+import InteractiveRail from '../components/InteractiveRail.jsx';
 import { BRANDS } from '../data/site.js';
 import { PRODUCT_IMAGES } from '../data/products.js';
 import useProductCategories from '../hooks/useProductCategories.js';
@@ -124,6 +125,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <InteractiveRail />
 
       <section className="section cream">
         <div className="container">

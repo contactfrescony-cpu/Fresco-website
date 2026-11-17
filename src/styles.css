@@ -486,7 +486,8 @@ main [id]{scroll-margin-top:90px}
 .home{background:var(--cream)}
 .home .hero{position:sticky;top:78px;z-index:0;transform:scale(var(--hero-scale,1));transform-origin:center top;will-change:transform}
 .home .hero:before{content:"";position:absolute;inset:0;z-index:2;background:#101613;opacity:var(--hero-dim,0);pointer-events:none}
-.home .hero-copy-inner{display:flex;flex-direction:column;align-items:flex-start;opacity:var(--hero-copy-opacity,1)}
+.home .hero-copy-inner{display:flex;flex-direction:column;align-items:flex-start;width:100%;min-width:0;opacity:var(--hero-copy-opacity,1)}
+.home .hero-copy .lead,.home .hero-copy .hero-body{max-width:100%}
 /* Everything after the hero is the curtain: raised above it and opaque. */
 .home .hero~*{position:relative;z-index:1}
 .home .hero~.section:not(.cream):not(.brief-visual){background:#fff}
@@ -524,6 +525,95 @@ main [id]{scroll-margin-top:90px}
 }
 /* The <picture> wrappers around the hero and band photos must not affect their sizing. */
 .hero-media picture,.home-band picture{display:contents}
+
+/* ---------- Interactive turn-to-face garment rail ---------- */
+.interactive-rail{position:relative;z-index:1;min-height:760px;padding:38px 24px 48px;overflow:hidden;background:radial-gradient(circle at 50% 30%,#f4f0e6 0%,#ece7dc 70%,#e2dcd0 100%);text-align:center;user-select:none;isolation:isolate}
+.interactive-rail-tabs{position:relative;z-index:5;display:flex;align-items:center;justify-content:center;gap:20px;color:#6f6a62;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.interactive-rail-tabs span:first-child{color:#282622}.interactive-rail-tabs i{display:block;width:1px;height:18px;background:#c1bbb0}
+.interactive-rail-suspension{position:absolute;top:0;left:50%;z-index:0;width:min(920px,86vw);height:116px;transform:translateX(-50%);pointer-events:none}
+.interactive-rail-suspension span{position:absolute;top:0;width:3px;height:116px;background:linear-gradient(90deg,#dad9d5,#85847f,#c8c7c2);box-shadow:0 0 5px #0002}
+.interactive-rail-suspension span:first-child{left:7%}.interactive-rail-suspension span:last-child{right:7%}
+.interactive-rail-tube{position:absolute;top:108px;left:50%;z-index:10;width:min(1000px,90vw);height:56px;object-fit:fill;transform:translateX(-50%);filter:drop-shadow(0 4px 4px #0002);pointer-events:none}
+.interactive-rail-garments{position:relative;z-index:20;display:flex;align-items:flex-start;justify-content:center;width:min(980px,96vw);height:410px;margin:66px auto 0;padding:0 14px}
+.interactive-garment{position:relative;display:flex;flex:0 0 60px;align-items:flex-start;justify-content:center;width:60px;max-width:75px;height:390px;padding:0;border:0;background:transparent;color:inherit;cursor:pointer;perspective:1200px;transition:flex-basis .42s cubic-bezier(.2,.8,.2,1),width .42s cubic-bezier(.2,.8,.2,1),max-width .42s cubic-bezier(.2,.8,.2,1);transform:translateZ(0)}
+.interactive-garment.is-active{z-index:30;flex-basis:260px;width:260px;max-width:290px}
+.interactive-garment:not(.is-active){z-index:10}.interactive-garment:not(.is-active):hover{z-index:20}
+.interactive-garment:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.interactive-garment-side,.interactive-garment-face{position:absolute;top:0;left:50%;display:block;transform-origin:center top;transition:opacity .4s cubic-bezier(.2,.8,.2,1),transform .4s cubic-bezier(.2,.8,.2,1);will-change:transform,opacity}
+.interactive-garment-side{width:60px;opacity:1;transform:translateX(-50%) rotateY(0deg);filter:drop-shadow(0 12px 18px rgba(0,0,0,.18))}
+.interactive-garment-side img,.interactive-garment-face img{display:block;width:100%;height:auto;max-width:none;pointer-events:none}
+.interactive-garment-face{width:260px;opacity:0;transform:translateX(-50%) rotateY(90deg) scale(.9);filter:drop-shadow(0 24px 36px rgba(0,0,0,.22));pointer-events:none}
+.interactive-garment.is-active .interactive-garment-side{opacity:0;transform:translateX(-50%) rotateY(-90deg) scale(.95);pointer-events:none}
+.interactive-garment.is-active .interactive-garment-face{opacity:1;transform:translateX(-50%) rotateY(var(--tilt-x)) rotateX(var(--tilt-y)) scale(1);pointer-events:auto}
+.interactive-garment-flip-hint{position:absolute;top:8px;right:8px;padding:3px 8px;border-radius:99px;background:#111b;color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;opacity:0;transition:opacity .2s;white-space:nowrap;pointer-events:none}
+.interactive-garment.is-active:hover .interactive-garment-flip-hint,.interactive-garment.is-active:focus-visible .interactive-garment-flip-hint{opacity:1}
+.interactive-rail-meta{position:relative;z-index:40;display:flex;flex-direction:column;align-items:center;max-width:680px;margin:-12px auto 0}
+.interactive-rail-count{margin-bottom:5px;color:#817b72;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:600;letter-spacing:.12em}
+.interactive-rail-meta h2{margin:0 0 8px;color:#1a1714;font-family:var(--sans);font-size:clamp(28px,3vw,38px);font-weight:800;letter-spacing:-.035em;line-height:1}
+.interactive-rail-meta p{margin:0;color:#736d63;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:500;letter-spacing:.13em;text-transform:uppercase}
+.interactive-rail-dots{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px}
+.interactive-rail-dots button{width:6px;height:6px;padding:0;border:0;border-radius:99px;background:#b5aea2;cursor:pointer;transition:width .25s,background .25s}
+.interactive-rail-dots button:hover{background:#817b72}.interactive-rail-dots button.is-active{width:24px;background:#1a1714}
+.interactive-rail-dots button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media(max-width:760px){
+ .interactive-rail{min-height:650px;padding:28px 8px 42px}
+ .interactive-rail-suspension{height:94px;width:94vw}.interactive-rail-suspension span{height:94px}
+ .interactive-rail-tube{top:86px;width:96vw;height:44px}
+ .interactive-rail-garments{height:350px;width:100%;margin-top:52px;padding:0}
+ .interactive-garment{flex-basis:34px;width:34px;max-width:40px;height:330px}
+ .interactive-garment.is-active{flex-basis:min(210px,48vw);width:min(210px,48vw);max-width:210px}
+ .interactive-garment-side{width:38px}.interactive-garment-face{width:min(210px,48vw)}
+ .interactive-rail-meta{margin-top:-18px;padding:0 12px}
+ .interactive-rail-meta h2{font-size:27px}.interactive-rail-meta p{max-width:460px;font-size:9px;line-height:1.5}
+}
+@media(max-width:420px){
+ .interactive-garment{flex-basis:27px;width:27px}.interactive-garment-side{width:31px}
+ .interactive-garment.is-active{flex-basis:190px;width:190px}.interactive-garment-face{width:190px}
+}
+@media(prefers-reduced-motion:reduce){.interactive-garment,.interactive-garment-side,.interactive-garment-face,.interactive-rail-dots button{transition:none}}
+/* All three photographs share a 1125px canvas height. Preserve that common
+   scale: only the horizontal space changes when a garment turns forward. */
+.interactive-rail{--garment-height:360px;--side-width:120.96px;--front-width:288px;min-height:690px}
+.interactive-rail-tube{top:112px;height:10px;filter:drop-shadow(0 2px 2px #0002)}
+.interactive-rail-suspension,.interactive-rail-suspension span{height:116px}
+.interactive-rail-garments{height:calc(var(--garment-height) + 34px);margin-top:54px}
+.interactive-garment{height:var(--garment-height);flex-basis:64px;width:64px;max-width:64px}
+.interactive-garment.is-active{flex-basis:var(--front-width);width:var(--front-width);max-width:var(--front-width)}
+.interactive-garment-side{width:var(--side-width)}
+.interactive-garment-face{width:var(--front-width)}
+.interactive-garment-side img,.interactive-garment-face img{height:var(--garment-height);width:100%;object-fit:contain}
+.interactive-garment-side{pointer-events:none}
+.interactive-garment.is-active .interactive-garment-face{pointer-events:none}
+.interactive-rail-meta{margin-top:0}
+@media(max-width:760px){
+ .interactive-rail{--garment-height:280px;--side-width:94.08px;--front-width:224px;min-height:570px}
+ .interactive-rail-tube{top:88px;height:8px}
+ .interactive-rail-suspension,.interactive-rail-suspension span{height:92px}
+ .interactive-rail-garments{margin-top:40px;height:calc(var(--garment-height) + 32px)}
+ .interactive-garment{flex-basis:clamp(19px,4.4vw,34px);width:clamp(19px,4.4vw,34px);max-width:34px}
+ .interactive-garment.is-active{flex-basis:var(--front-width);width:var(--front-width);max-width:var(--front-width)}
+ .interactive-garment-side{width:var(--side-width)}.interactive-garment-face{width:var(--front-width)}
+}
+@media(max-width:420px){
+ .interactive-rail{--garment-height:240px;--side-width:80.64px;--front-width:192px;min-height:530px}
+}
+@media(prefers-reduced-motion:reduce){.interactive-garment.is-active .interactive-garment-face{transform:translateX(-50%)}}
+/* Fit the expanded front plus seven side slots inside the available width. */
+.interactive-garment-side img,.interactive-garment-face img{clip-path:inset(12% 0 0)}
+.rail-uniform-hook{position:absolute;top:calc(var(--garment-height)*.02);width:calc(var(--garment-height)*.0711);height:calc(var(--garment-height)*.0933);transform:translateX(-50%);overflow:visible;pointer-events:none;filter:drop-shadow(0 1px 1px #0002)}
+.interactive-rail-garments{width:min(980px,100%);padding-inline:0}
+.interactive-garment{flex-basis:min(76px,calc((100% - var(--front-width))/var(--side-count,7)));width:min(76px,calc((100% - var(--front-width))/var(--side-count,7)));max-width:76px;min-width:0}
+.interactive-rail-dots{gap:0}
+.interactive-rail-dots button{position:relative;width:36px;height:44px;background:transparent;border-radius:0}
+.interactive-rail-dots button:after{content:"";position:absolute;top:19px;left:50%;width:6px;height:6px;border-radius:99px;background:#b5aea2;transform:translateX(-50%);transition:width .25s,background .25s}
+.interactive-rail-dots button.is-active,.interactive-rail-dots button:hover{width:36px;background:transparent}
+.interactive-rail-dots button.is-active:after{width:24px;background:#1a1714}
+@media(max-width:760px){
+ .interactive-garment{flex-basis:min(72px,calc((100% - var(--front-width))/var(--side-count,7)));width:min(72px,calc((100% - var(--front-width))/var(--side-count,7)));max-width:72px}
+ .interactive-rail-meta h2{overflow-wrap:anywhere;line-height:1.15}
+}
+@media(pointer:coarse){.interactive-rail-dots button,.interactive-rail-dots button.is-active,.interactive-rail-dots button:hover{width:36px;min-height:44px}.interactive-garment-flip-hint{opacity:1}}
+@media(max-width:420px){.interactive-rail-dots button,.interactive-rail-dots button.is-active,.interactive-rail-dots button:hover{width:30px}}
 /* Phones and small tablets held sideways are too short for a full-screen opening: the hero grows to fit
    its copy, and is not pinned (a pinned box taller than the screen would hide its own lower part). */
 @media(orientation:landscape) and (max-height:520px){

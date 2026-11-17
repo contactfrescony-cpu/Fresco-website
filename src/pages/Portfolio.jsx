@@ -1,5 +1,6 @@
 import usePageMeta from '../hooks/usePageMeta.js';
 import GalleryImage from '../components/GalleryImage.jsx';
+import CurvedRail from '../components/spatial-rail/CurvedRail.tsx';
 import { PRODUCT_IMAGES } from '../data/products.js';
 import useProductCategories from '../hooks/useProductCategories.js';
 import productInMind from '../assets/product-in-mind.webp';
@@ -15,6 +16,8 @@ export default function Portfolio() {
 
   return (
     <main>
+      <CurvedRail />
+
       <section className="page-hero">
         <div className="container">
           <div className="eyebrow">OUR PRODUCTS</div>
