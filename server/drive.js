@@ -141,27 +141,7 @@ async function trashWebsiteFile(id, env = process.env) {
   await callScript({ action: 'trashWebsite', id }, env);
 }
 
-async function listHeroBanners(env = process.env) {
-  const result = await callScript({ action: 'listHeroBanners' }, env);
-  return { files: Array.isArray(result.files) ? result.files : [], schedule: result.schedule || null };
-}
-
-async function uploadHeroBanner({ name, mimeType, buffer }, env = process.env) {
-  const result = await callScript({ action: 'uploadHeroBanner', name, mimeType, data: buffer.toString('base64') }, env);
-  if (!result.id || Number(result.size) !== buffer.length) throw new DriveError('drive_unverified', `size=${result.size}`);
-  return result;
-}
-
-async function saveHeroRotation(schedule, env = process.env) {
-  return callScript({ action: 'saveHeroRotation', ...schedule }, env);
-}
-
-async function trashHeroBanner(id, env = process.env) {
-  return callScript({ action: 'trashHeroBanner', id }, env);
-}
-
 module.exports = {
   isDriveConfigured, uploadToDrive, pingDrive, listProcessed, downloadProcessed,
-  ensureWebsiteFolder, uploadWebsiteFile, copyToWebsite, downloadWebsiteFile, trashWebsiteFile, moveWebsiteFile, locateFiles,
-  listHeroBanners, uploadHeroBanner, saveHeroRotation, trashHeroBanner, DriveError
+  ensureWebsiteFolder, uploadWebsiteFile, copyToWebsite, downloadWebsiteFile, trashWebsiteFile, moveWebsiteFile, locateFiles, DriveError
 };

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import '../review.css';
 import { clearGalleryCache } from '../../lib/gallery.js';
 import DevelopmentImagesSection, { prepareWebsiteImage, WEBSITE_IMAGE_ACCEPT } from './DevelopmentImagesSection.jsx';
-import HeroBannersSection from './HeroBannersSection.jsx';
 
 /*
  * Approver's "Website Images" page — split screen.
@@ -519,7 +518,6 @@ export default function ReviewPage() {
         </section>
       </div>
 
-      <HeroBannersSection />
       <DevelopmentImagesSection />
 
       {pickerPhoto && (

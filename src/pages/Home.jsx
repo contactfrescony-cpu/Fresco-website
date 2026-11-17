@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import usePageMeta from '../hooks/usePageMeta.js';
 import GalleryImage from '../components/GalleryImage.jsx';
@@ -51,20 +51,6 @@ export default function Home() {
   );
   // Shuffle once per visit so the brand wall has no fixed positions.
   const [brands] = useState(() => shuffle(BRANDS));
-  const [managedHero, setManagedHero] = useState(null);
-  useEffect(() => {
-    let active = true;
-    const preview = new URLSearchParams(window.location.search).get('heroPreview');
-    if (preview && /^\/media\/[A-Za-z0-9._%~-]+$/.test(preview)) {
-      setManagedHero(preview);
-      return () => { active = false; };
-    }
-    fetch('/api/home-hero', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : { image: null }))
-      .then((data) => { if (active && data.image?.url) setManagedHero(data.image.url); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
   // Which categories appear here (up to 4) and in what order is chosen by approvers in the back office.
   const homeCategories = useProductCategories().filter((category) => category.showOnHome).slice(0, 4);
   // Scroll parallax: the hero is pinned and recedes as the page slides over it, and the photo
@@ -86,23 +72,15 @@ export default function Home() {
           </div>
         </div>
         <div className="hero-media">
-          {managedHero ? (
+          <picture>
+            <source media={PHONE_PORTRAIT} srcSet={heroPhoneImage} width="1600" height="1200" />
+            <source media={TABLET_PORTRAIT} srcSet={heroTabletImage} width="1000" height="2500" />
             <img
-              src={managedHero}
+              src={heroImage}
               alt="Editorial fashion models wearing textured casual garments"
-              width="1600" height="2400" fetchPriority="high" decoding="async"
+              width="1024" height="1536" fetchPriority="high" decoding="async"
             />
-          ) : (
-            <picture>
-              <source media={PHONE_PORTRAIT} srcSet={heroPhoneImage} width="1600" height="1200" />
-              <source media={TABLET_PORTRAIT} srcSet={heroTabletImage} width="1000" height="2500" />
-              <img
-                src={heroImage}
-                alt="Editorial fashion models wearing textured casual garments"
-                width="1600" height="2400" fetchPriority="high" decoding="async"
-              />
-            </picture>
-          )}
+          </picture>
         </div>
       </section>
 
