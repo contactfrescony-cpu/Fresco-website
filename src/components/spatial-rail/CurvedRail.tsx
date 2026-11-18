@@ -88,6 +88,8 @@ export default function CurvedRail() {
   const velocity = useRef(0);
   const pulls = useRef<number[]>(new Array(TOTAL).fill(0));
   const pullVelocities = useRef<number[]>(new Array(TOTAL).fill(0));
+  const swingAngles = useRef<number[]>(new Array(TOTAL).fill(0));
+  const swingVelocities = useRef<number[]>(new Array(TOTAL).fill(0));
   const reducedMotion = useRef(false);
   const isDragging = useRef(false);
   const dragMoved = useRef(false);
@@ -281,10 +283,9 @@ export default function CurvedRail() {
       if (!el) continue;
 
       const diff = diffs[idx];
-      if (diff < -1.2 || diff > TOTAL + 1) {
-        el.style.visibility = "hidden";
-        continue;
-      }
+      // Avoid a hard visibility boundary: the rail spring can cross a cutoff
+      // for a single frame and then settle back, which produces a flash.
+      // The continuous opacity curve below already fades departed garments out.
       el.style.visibility = "";
 
       let scale: number;
@@ -311,10 +312,11 @@ export default function CurvedRail() {
       el.style.width = `${wid}px`;
       el.style.height = `${hgt}px`;
 
+      const swing = reducedMotion.current ? 0 : swingAngles.current[idx];
       el.style.transform = `translate(${(pos.x - wid / 2).toFixed(1)}px, ${(
         pos.y -
         hgt * BT
-      ).toFixed(1)}px)`;
+      ).toFixed(1)}px) rotate(${swing.toFixed(3)}deg)`;
       el.style.opacity = opacity.toFixed(3);
       el.style.zIndex = String(100 - Math.round(diff * 4));
 
@@ -355,6 +357,32 @@ export default function CurvedRail() {
         const damping = 2 * Math.sqrt(stiffness) * 1.02;
         velocity.current += (stiffness * (targetPos.current - currentPos.current) - damping * velocity.current) * dt;
         currentPos.current += velocity.current * dt;
+      }
+
+      // Let every garment swing from its hook as the rail moves. The front
+      // pieces receive the strongest impulse; garments deeper on the rail
+      // react more softly and settle with a short under-damped oscillation.
+      for (let i = 0; i < TOTAL; i++) {
+        if (reducedMotion.current) {
+          swingAngles.current[i] = 0;
+          swingVelocities.current[i] = 0;
+          continue;
+        }
+
+        const depth = i - currentPos.current;
+        const depthResponse = 1 - smoothstep(0, 6, depth) * 0.6;
+        const targetSwing = clamp(-velocity.current * 5.5 * depthResponse, -9, 9);
+        const swingStiffness = 38;
+        const swingDamping = 3.2;
+        swingVelocities.current[i] +=
+          (swingStiffness * (targetSwing - swingAngles.current[i]) -
+            swingDamping * swingVelocities.current[i]) *
+          dt;
+        swingAngles.current[i] = clamp(
+          swingAngles.current[i] + swingVelocities.current[i] * dt,
+          -11,
+          11
+        );
       }
 
       const roundIdx = Math.round(currentPos.current);

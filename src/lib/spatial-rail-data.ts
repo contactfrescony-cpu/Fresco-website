@@ -30,7 +30,6 @@ export const GARMENTS: Garment[] = [
   { id: "outerwear", name: "Outerwear", colour: "Burgundy", price: 0, line: "Jackets and layers with considered materials and functional detailing.", material: "Fresco collection", sizes: [] },
   { id: "denim", name: "Denim", colour: "Indigo", price: 0, line: "Five-pocket denim across washes, fits and finishes.", material: "Fresco collection", sizes: [] },
   { id: "trousers", name: "Trousers", colour: "Charcoal", price: 0, line: "Chinos, joggers and utility trousers with clean construction.", material: "Fresco collection", sizes: [] },
-  { id: "shorts", name: "Shorts", colour: "Forest", price: 0, line: "Terry, printed and woven shorts for warm-season ranges.", material: "Fresco collection", sizes: [] },
 ];
 
 export const ART = {
@@ -43,6 +42,5 @@ export const ART = {
     outerwear: { color: "#6f3034", views: ["front"], bottom: 1440, half: 480 },
     denim: { color: "#30465d", views: ["front"], bottom: 1570, half: 330 },
     trousers: { color: "#313133", views: ["front"], bottom: 1580, half: 315 },
-    shorts: { color: "#173e32", views: ["front"], bottom: 1290, half: 455 },
   } as Record<string, GarmentArt>,
 };

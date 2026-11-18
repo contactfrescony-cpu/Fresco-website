@@ -232,7 +232,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  transform-origin: 50% 3.2%;
+  transform-origin: 50% 8%;
   will-change: transform;
   pointer-events: none;
 }
